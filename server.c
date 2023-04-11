@@ -15,6 +15,7 @@ void func(int connfd)
 {
     char buff[MAX];
     int n;
+    char filename[20];
     // infinite loop for chat
     for (;;) {
         bzero(buff, MAX);
@@ -46,15 +47,32 @@ void func(int connfd)
             strcat(buff, n);
             strcat(buff, fileContents); // buff might be too small for files
         }
+
+        if (strstr(buff, "download")) {
+            char* token = strtok(buff, " ");
+            token = strtok(NULL, " ");
+            strcpy(filename, token);
+            filename[strlen(filename)-1] = '\0';
+        }
    
         // and send that buffer to client
         write(connfd, buff, sizeof(buff)); // buff might be too small for files
    
         // read the message from client and copy it in buffer
         read(connfd, buff, sizeof(buff));
-        // get file contents to new file
-        if (strstr(buff, "download")) {
-            
+
+        // get file contents to new file 
+        // if the given command is download, the server should receive only the file's
+        // content from the client and will send the command to the client as received
+        // from the user on the server.
+        if (strlen(filename) != 0) {
+            FILE * file;
+            if ((file = fopen(filename, "w")) == NULL) {
+                printf("unable to create file on server!\n");
+                exit(0);
+            }
+            fputs(buff, file);
+            fclose(file);
         }
 
         // print buffer which contains the client contents
