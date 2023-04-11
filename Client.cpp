@@ -236,7 +236,7 @@ int main(int argc, char* arg[]) {
     string serverCommand = recv(clientSocket, recvbuf, 200, 0);
 
 
-    cout << "Server Command: ";
+    cout << "Server Command: " << serverCommand << endl;
     transform(serverCommand.begin(), serverCommand.end(), serverCommand.begin(), toupper);
 
     //Send message to the server
