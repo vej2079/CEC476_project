@@ -6,9 +6,138 @@
 #include <sys/socket.h>
 #include <sys/types.h>
 #include <unistd.h> // read(), write(), close()
+#include <string>
+#include <cctype>
+#include <vector>
+#include <cmath>
 #define MAX 80
 #define PORT 8080
 #define SA struct sockaddr
+
+// Caesar Cipher
+int caesar_shift = 3;
+
+// XOR Encryption
+std::string key1 = "csec476";
+std::string key2 = "reversingproject";
+
+// Base64 characters
+static const std::string BASE64_CHARS = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
+
+// Encode functions ...
+std::string xor_encrypt(const std::string &input, const std::string &key) {
+    std::string output;
+    output.resize(input.size());
+    for (size_t i = 0; i < input.size(); ++i) {
+        output[i] = input[i] ^ key[i % key.size()];
+    }
+    return output;
+}
+
+std::string caesar_encrypt(const std::string &input) {
+    std::string output;
+    output.resize(input.size());
+    for (size_t i = 0; i < input.size(); ++i) {
+        if (isalpha(input[i])) {
+            int offset = isupper(input[i]) ? 'A' : 'a';
+            output[i] = (input[i] - offset + caesar_shift) % 26 + offset;
+        } else {
+            output[i] = input[i];
+        }
+    }
+    return output;
+}
+
+std::string caesar_decrypt(const std::string &input) {
+    std::string output;
+    output.resize(input.size());
+    for (size_t i = 0; i < input.size(); ++i) {
+        if (isalpha(input[i])) {
+            int offset = isupper(input[i]) ? 'A' : 'a';
+            output[i] = (input[i] - offset - caesar_shift + 26) % 26 + offset;
+        } else {
+            output[i] = input[i];
+        }
+    }
+    return output;
+}
+
+std::string base64_encode(const std::string &input) {
+    std::string output;
+    int val = 0;
+    int valb = -6;
+    for (unsigned char c : input) {
+        val = (val << 8) + c;
+        valb += 8;
+        while (valb >= 0) {
+            output.push_back(BASE64_CHARS[(val >> valb) & 0x3F]);
+            valb -= 6;
+        }
+    }
+    if (valb > -6) {
+        output.push_back(BASE64_CHARS[((val << 8) >> (valb + 8)) & 0x3F]);
+    }
+    while (output.size() % 4) {
+        output.push_back('=');
+    }
+    return output;
+}
+
+std::string base64_decode(const std::string &input) {
+    std::string output;
+    std::vector<int> T(256, -1);
+    for (size_t i = 0; i < BASE64_CHARS.size(); i++) {
+        T[BASE64_CHARS[i]] = i;
+    }
+
+    int val = 0;
+    int valb = -8;
+    for (unsigned char c : input) {
+        if (T[c] == -1) {
+            break;
+        }
+        val = (val << 6) + T[c];
+        valb += 6;
+        if (valb >= 0) {
+            output.push_back(static_cast<char>((val >> valb) & 0xFF));
+            valb -= 8;
+        }
+    }
+    return output;
+}
+
+// Encode Decode Comb
+std::string encrypt(const std::string &input) {
+    // Step 1: XOR
+    std::string xor_encrypted = xor_encrypt(input, key1);
+
+    // Step 2: Caesar Cipher
+    std::string caesar_encrypted = caesar_encrypt(xor_encrypted);
+
+    // Step 3: Base64
+    std::string base64_encoded = base64_encode(caesar_encrypted);
+
+    // Step 4: XOR again
+    std::string final_encrypted = xor_encrypt(base64_encoded, key2);
+
+    return final_encrypted;
+}
+
+std::string decrypt(const std::string &input) {
+    // Step 1: XOR
+    std::string xor_decrypted = xor_encrypt(input, key2);
+
+    // Step 2: Base64
+    std::string base64_decoded = base64_decode(xor_decrypted);
+
+    // Step 3: Caesar Cipher
+    std::string caesar_decrypted = caesar_decrypt(base64_decoded);
+
+    // Step 4: XOR again
+    std::string final_decrypted = xor_encrypt(caesar_decrypted, key1);
+
+    return final_decrypted;
+}
    
 // Function designed for chat between client and server.
 void func(int connfd)
@@ -24,6 +153,10 @@ void func(int connfd)
         // copy server message in the buffer
         while ((buff[n++] = getchar()) != '\n')
             ;
+
+        string encryptedBuff = encrypt(string(buff));
+        strncpy(buff, encryptedBuff.c_str(), encryptedBuff.size());
+        buff[encryptedBuff.size()] = '\0';
 
         // send file to client
         if (strstr(buff, "upload")) {
@@ -46,6 +179,10 @@ void func(int connfd)
             char n[2] = "\n\n";
             strcat(buff, n);
             strcat(buff, fileContents); // buff might be too small for files
+
+            string encryptedFileContents = encrypt(string(fileContents));
+            strncpy(fileContents, encryptedFileContents.c_str(), encryptedFileContents.size());
+            fileContents[encryptedFileContents.size()] = '\0';
         }
 
         if (strstr(buff, "download")) {
@@ -54,12 +191,16 @@ void func(int connfd)
             strcpy(filename, token);
             filename[strlen(filename)-1] = '\0';
         }
-   
+
         // and send that buffer to client
-        write(connfd, buff, sizeof(buff)); // buff might be too small for files
-   
+        send(connfd, buff, sizeof(buff), 0); // buff might be too small for files
+
         // read the message from client and copy it in buffer
-        read(connfd, buff, sizeof(buff));
+        recv(connfd, buff, sizeof(buff), 0);
+
+        string decryptedBuff = decrypt(string(buff));
+        strncpy(buff, decryptedBuff.c_str(), decryptedBuff.size());
+        buff[decryptedBuff.size()] = '\0';
 
         // get file contents to new file 
         // if the given command is download, the server should receive only the file's
