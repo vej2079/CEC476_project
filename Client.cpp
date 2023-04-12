@@ -20,10 +20,139 @@
 #include <locale>
 #include <tchar.h>
 #include <algorithm>
+#include <cctype>
+#include <cmath>
 
 #pragma comment(lib, "WS2_32")
 #pragma comment(lib, "iphlpapi.lib")
 #pragma comment(lib, "ws2_32.lib")
+
+// Caesar Cipher
+int caesar_shift = 3;
+
+// XOR Encryption
+std::string key1 = "csec476";
+std::string key2 = "reversingproject";
+
+// Base64 characters
+static const std::string BASE64_CHARS = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
+
+// Encode functions ...
+std::string xor_encrypt(const std::string& input, const std::string& key) {
+    std::string output;
+    output.resize(input.size());
+    for (size_t i = 0; i < input.size(); ++i) {
+        output[i] = input[i] ^ key[i % key.size()];
+    }
+    return output;
+}
+
+std::string caesar_encrypt(const std::string& input) {
+    std::string output;
+    output.resize(input.size());
+    for (size_t i = 0; i < input.size(); ++i) {
+        if (isalpha(input[i])) {
+            int offset = isupper(input[i]) ? 'A' : 'a';
+            output[i] = (input[i] - offset + caesar_shift) % 26 + offset;
+        }
+        else {
+            output[i] = input[i];
+        }
+    }
+    return output;
+}
+
+std::string caesar_decrypt(const std::string& input) {
+    std::string output;
+    output.resize(input.size());
+    for (size_t i = 0; i < input.size(); ++i) {
+        if (isalpha(input[i])) {
+            int offset = isupper(input[i]) ? 'A' : 'a';
+            output[i] = (input[i] - offset - caesar_shift + 26) % 26 + offset;
+        }
+        else {
+            output[i] = input[i];
+        }
+    }
+    return output;
+}
+
+std::string base64_encode(const std::string& input) {
+    std::string output;
+    int val = 0;
+    int valb = -6;
+    for (unsigned char c : input) {
+        val = (val << 8) + c;
+        valb += 8;
+        while (valb >= 0) {
+            output.push_back(BASE64_CHARS[(val >> valb) & 0x3F]);
+            valb -= 6;
+        }
+    }
+    if (valb > -6) {
+        output.push_back(BASE64_CHARS[((val << 8) >> (valb + 8)) & 0x3F]);
+    }
+    while (output.size() % 4) {
+        output.push_back('=');
+    }
+    return output;
+}
+
+std::string base64_decode(const std::string& input) {
+    std::string output;
+    std::vector<int> T(256, -1);
+    for (size_t i = 0; i < BASE64_CHARS.size(); i++) {
+        T[BASE64_CHARS[i]] = i;
+    }
+
+    int val = 0;
+    int valb = -8;
+    for (unsigned char c : input) {
+        if (T[c] == -1) {
+            break;
+        }
+        val = (val << 6) + T[c];
+        valb += 6;
+        if (valb >= 0) {
+            output.push_back(static_cast<char>((val >> valb) & 0xFF));
+            valb -= 8;
+        }
+    }
+    return output;
+}
+
+// Encode Decode Comb
+std::string encrypt(const std::string& input) {
+    // Step 1: XOR
+    std::string xor_encrypted = xor_encrypt(input, key1);
+
+    // Step 2: Caesar Cipher
+    std::string caesar_encrypted = caesar_encrypt(xor_encrypted);
+
+    // Step 3: Base64
+    std::string base64_encoded = base64_encode(caesar_encrypted);
+
+    // Step 4: XOR again
+    std::string final_encrypted = xor_encrypt(base64_encoded, key2);
+
+    return final_encrypted;
+}
+
+std::string decrypt(const std::string& input) {
+    // Step 1: XOR
+    std::string xor_decrypted = xor_encrypt(input, key2);
+
+    // Step 2: Base64
+    std::string base64_decoded = base64_decode(xor_decrypted);
+
+    // Step 3: Caesar Cipher
+    std::string caesar_decrypted = caesar_decrypt(base64_decoded);
+
+    // Step 4: XOR again
+    std::string final_decrypted = xor_encrypt(caesar_decrypted, key1);
+
+    return final_decrypted;
+}
 
 using namespace std;
 
