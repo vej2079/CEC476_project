@@ -1,9 +1,19 @@
+#undef UNICODE
+
+#define WIN32_LEAN_AND_MEAN
+
 #include <stdio.h>
-#include <netdb.h>
-#include <netinet/in.h>
+#include <winsock2.h>
+#include <ws2tcpip.h>
+#include <ws2def.h>
+#include <windows.h>
+#include <io.h>
+//#include <netdb.h>
+//#include <netinet/in.h>
 #include <stdlib.h>
-#include <string>
-#include <sys/socket.h>
+#include <string.h>
+#include <unistd.h>
+//#include <sys/socket.h>
 #include <sys/types.h>
 #include <iostream>
 #include <errno.h>
@@ -12,9 +22,14 @@
 #include <cctype>
 #include <vector>
 #include <cmath>
-#define MAX 80
-#define PORT 8080
+#define MAX 512
+#define PORT "8080"
 #define SA struct sockaddr
+#define bzero(b,len) (memset((b), '\0', (len)), (void) 0)
+
+#pragma comment(lib, "WS2_32")
+#pragma comment(lib, "iphlpapi.lib")
+#pragma comment(lib, "ws2_32.lib")
 
 using namespace std;
 
@@ -144,7 +159,7 @@ std::string decrypt(const std::string &input) {
 }
    
 // Function designed for chat between client and server.
-int func(int connfd)
+int func(SOCKET connfd)
 {
     char buff[MAX];
     int n;
@@ -236,51 +251,82 @@ int func(int connfd)
 // Driver function
 int main()
 {
-    int sockfd, connfd, len;
-    struct sockaddr_in servaddr, cli;
-   
-    // socket create and verification
-    sockfd = socket(AF_INET, SOCK_STREAM, 0);
-    if (sockfd == -1) {
-        cout << "socket creation failed...\n" << endl;
-        return 0;
-    }
-    else
-        cout << "Socket successfully created..\n" << endl;
-    bzero(&servaddr, sizeof(servaddr));
-   
-    // assign IP, PORT
-    servaddr.sin_family = AF_INET;
-    servaddr.sin_addr.s_addr = htonl(INADDR_ANY);
-    servaddr.sin_port = htons(PORT);
-   
-    // Binding newly created socket to given IP and verification
-    if ((bind(sockfd, (SA*)&servaddr, sizeof(servaddr))) != 0) {
-        cout << "socket bind failed...\n" << endl;
-        return 0;
-    }
-    else
-        cout << "Socket successfully binded..\n" << endl;
-   
-    // Now server is ready to listen and verification
-    if ((listen(sockfd, 5)) != 0) {
-        cout << "Listen failed...\n" << endl;
-        return 0;
-    }
-    else
-        cout << "Server listening..\n" << endl;
-    len = sizeof(cli);
-   
-    socklen_t peeraddr_len;
+    WSADATA wsaData;
+    int iResult;
 
-    // Accept the data packet from client and verification
-    connfd = accept(sockfd, (SA*)&cli, &peeraddr_len);
-    if (connfd < 0) {
-        cout << "server accept failed...\n" << endl;
-        return 0;
+    SOCKET ListenSocket = INVALID_SOCKET;
+    SOCKET ClientSocket = INVALID_SOCKET;
+
+    struct addrinfo *result = NULL;
+    struct addrinfo hints;
+
+    int iSendResult;
+    char recvbuf[MAX];
+    int recvbuflen = MAX;
+    
+    // Initialize Winsock
+    iResult = WSAStartup(MAKEWORD(2,2), &wsaData);
+    if (iResult != 0) {
+        printf("WSAStartup failed with error: %d\n", iResult);
+        return 1;
     }
-    else
-        cout << "server accept the client...\n" << endl;
+
+    ZeroMemory(&hints, sizeof(hints));
+    hints.ai_family = AF_INET;
+    hints.ai_socktype = SOCK_STREAM;
+    hints.ai_protocol = IPPROTO_TCP;
+    hints.ai_flags = AI_PASSIVE;
+
+    // Resolve the server address and port
+    iResult = getaddrinfo(NULL, PORT, &hints, &result);
+    if ( iResult != 0 ) {
+        printf("getaddrinfo failed with error: %d\n", iResult);
+        WSACleanup();
+        return 1;
+    }
+
+    // Create a SOCKET for the server to listen for client connections.
+    ListenSocket = socket(result->ai_family, result->ai_socktype, result->ai_protocol);
+    if (ListenSocket == INVALID_SOCKET) {
+        printf("socket failed with error: %ld\n", WSAGetLastError());
+        freeaddrinfo(result);
+        WSACleanup();
+        return 1;
+    }
+
+    // Setup the TCP listening socket
+    iResult = bind( ListenSocket, result->ai_addr, (int)result->ai_addrlen);
+    if (iResult == SOCKET_ERROR) {
+        printf("bind failed with error: %d\n", WSAGetLastError());
+        freeaddrinfo(result);
+        closesocket(ListenSocket);
+        WSACleanup();
+        return 1;
+    }
+
+    freeaddrinfo(result);
+
+    iResult = listen(ListenSocket, SOMAXCONN);
+    if (iResult == SOCKET_ERROR) {
+        printf("listen failed with error: %d\n", WSAGetLastError());
+        closesocket(ListenSocket);
+        WSACleanup();
+        return 1;
+    }
+
+    // Accept a client socket
+    ClientSocket = accept(ListenSocket, NULL, NULL);
+    if (ClientSocket == INVALID_SOCKET) {
+        printf("accept failed with error: %d\n", WSAGetLastError());
+        closesocket(ListenSocket);
+        WSACleanup();
+        return 1;
+    }
+
+    func(ClientSocket);
+
+    // No longer need server socket
+    closesocket(ListenSocket);
    
     cout << "\nInformation to get from client:\n\tIPAddress : this will gather the client's IP Addess\n\t"
             "Username : this will gather the client's username\n\tMacAddress : this will gather the client's" 
@@ -288,8 +334,4 @@ int main()
             "list out the client's running processes\n\tupload <file path> : this will upload a file to the"
             "client\n\tdownload <file path> : this will download a file from the client\n\n" << endl;
     // Function for chatting between client and server
-    func(connfd);
-   
-    // After chatting close the socket
-    close(sockfd);
 }
