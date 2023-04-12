@@ -2,9 +2,11 @@
 #include <netdb.h>
 #include <netinet/in.h>
 #include <stdlib.h>
-#include <string.h>
+#include <string>
 #include <sys/socket.h>
 #include <sys/types.h>
+#include <iostream>
+#include <errno.h>
 #include <unistd.h> // read(), write(), close()
 #include <string>
 #include <cctype>
@@ -13,6 +15,8 @@
 #define MAX 80
 #define PORT 8080
 #define SA struct sockaddr
+
+using namespace std;
 
 // Caesar Cipher
 int caesar_shift = 3;
@@ -140,7 +144,7 @@ std::string decrypt(const std::string &input) {
 }
    
 // Function designed for chat between client and server.
-void func(int connfd)
+int func(int connfd)
 {
     char buff[MAX];
     int n;
@@ -148,49 +152,22 @@ void func(int connfd)
     // infinite loop for chat
     for (;;) {
         bzero(buff, MAX);
-        printf("Command for client : ");
+        cout << "Command for client : " << endl;
         n = 0;
         // copy server message in the buffer
         while ((buff[n++] = getchar()) != '\n')
             ;
 
-        string encryptedBuff = encrypt(string(buff));
-        strncpy(buff, encryptedBuff.c_str(), encryptedBuff.size());
-        buff[encryptedBuff.size()] = '\0';
-
-        // send file to client
         if (strstr(buff, "upload")) {
-            char* token = strtok(buff, " ");
-            token = strtok(NULL, " ");
-            char path[80];
-            strcpy(path, token);
-            path[strlen(path)-1] = '\0';
-            FILE* file;
-            if ((file = fopen(path, "r")) == NULL) {
-                printf("File Not Found on Server!\n");
-                exit(0);
-            }
-            fseek(file, 0, SEEK_END);
-            long len = ftell(file);
-            fseek(file, 0, SEEK_SET);
-            char fileContents[len];
-            fread(fileContents, 1, len, file);
-            fclose(file);
-            char n[2] = "\n\n";
-            strcat(buff, n);
-            strcat(buff, fileContents); // buff might be too small for files
-
-            string encryptedFileContents = encrypt(string(fileContents));
-            strncpy(fileContents, encryptedFileContents.c_str(), encryptedFileContents.size());
-            fileContents[encryptedFileContents.size()] = '\0';
-        }
-
-        if (strstr(buff, "download")) {
             char* token = strtok(buff, " ");
             token = strtok(NULL, " ");
             strcpy(filename, token);
             filename[strlen(filename)-1] = '\0';
         }
+
+        string encryptedBuff = encrypt(string(buff));
+        strncpy(buff, encryptedBuff.c_str(), encryptedBuff.size());
+        buff[encryptedBuff.size()] = '\0';
 
         // and send that buffer to client
         send(connfd, buff, sizeof(buff), 0); // buff might be too small for files
@@ -202,6 +179,33 @@ void func(int connfd)
         strncpy(buff, decryptedBuff.c_str(), decryptedBuff.size());
         buff[decryptedBuff.size()] = '\0';
 
+        if (strstr(buff, "download")) {
+            char* token = strtok(buff, " ");
+            token = strtok(NULL, " ");
+            char downloadFile[20];
+            strcpy(downloadFile, token);
+            downloadFile[strlen(downloadFile)-1] = '\0';
+            strcpy(downloadFile, token);
+            downloadFile[strlen(downloadFile)-1] = '\0';
+            FILE* file;
+            if ((file = fopen(downloadFile, "r")) == NULL) {
+                cout << "File Not Found on Server!\n" << endl;
+                return 0;
+            }
+            fseek(file, 0, SEEK_END);
+            long len = ftell(file);
+            fseek(file, 0, SEEK_SET);
+            bzero(buff, MAX);
+            // char fileContents[len];
+            fread(buff, 1, len, file);
+            fclose(file);
+
+            string encryptedFileContents = encrypt(string(buff));
+            strncpy(buff, encryptedFileContents.c_str(), encryptedFileContents.size());
+            buff[encryptedFileContents.size()] = '\0';
+            send(connfd, buff, sizeof(buff), 0); // buff might be too small for files
+        }
+
         // get file contents to new file 
         // if the given command is download, the server should receive only the file's
         // content from the client and will send the command to the client as received
@@ -209,23 +213,24 @@ void func(int connfd)
         if (strlen(filename) != 0) {
             FILE * file;
             if ((file = fopen(filename, "w")) == NULL) {
-                printf("unable to create file on server!\n");
-                exit(0);
+                cout << "unable to create file on server!\n" << endl;
+                return 0;
             }
             fputs(buff, file);
             fclose(file);
         }
 
         // print buffer which contains the client contents
-        printf("Client's response:\n %s", buff);
+        cout << "Client's response:\n" << buff << endl;
         bzero(buff, MAX);
 
         // if msg contains "Exit" then server exit and chat ended.
         if (strncmp("exit", buff, 4) == 0) {
-            printf("Server Exit...\n");
+            cout << "Server Exit...\n" << endl;
             break;
         }
     }
+    return 0;
 }
 
 // Driver function
@@ -237,11 +242,11 @@ int main()
     // socket create and verification
     sockfd = socket(AF_INET, SOCK_STREAM, 0);
     if (sockfd == -1) {
-        printf("socket creation failed...\n");
-        exit(0);
+        cout << "socket creation failed...\n" << endl;
+        return 0;
     }
     else
-        printf("Socket successfully created..\n");
+        cout << "Socket successfully created..\n" << endl;
     bzero(&servaddr, sizeof(servaddr));
    
     // assign IP, PORT
@@ -251,35 +256,37 @@ int main()
    
     // Binding newly created socket to given IP and verification
     if ((bind(sockfd, (SA*)&servaddr, sizeof(servaddr))) != 0) {
-        printf("socket bind failed...\n");
-        exit(0);
+        cout << "socket bind failed...\n" << endl;
+        return 0;
     }
     else
-        printf("Socket successfully binded..\n");
+        cout << "Socket successfully binded..\n" << endl;
    
     // Now server is ready to listen and verification
     if ((listen(sockfd, 5)) != 0) {
-        printf("Listen failed...\n");
-        exit(0);
+        cout << "Listen failed...\n" << endl;
+        return 0;
     }
     else
-        printf("Server listening..\n");
+        cout << "Server listening..\n" << endl;
     len = sizeof(cli);
    
+    socklen_t peeraddr_len;
+
     // Accept the data packet from client and verification
-    connfd = accept(sockfd, (SA*)&cli, &len);
+    connfd = accept(sockfd, (SA*)&cli, &peeraddr_len);
     if (connfd < 0) {
-        printf("server accept failed...\n");
-        exit(0);
+        cout << "server accept failed...\n" << endl;
+        return 0;
     }
     else
-        printf("server accept the client...\n");
+        cout << "server accept the client...\n" << endl;
    
-    printf("\nInformation to get from client:\n\tIPAddress : this will gather the client's IP Addess\n\t"
+    cout << "\nInformation to get from client:\n\tIPAddress : this will gather the client's IP Addess\n\t"
             "Username : this will gather the client's username\n\tMacAddress : this will gather the client's" 
             "MAC Address\n\tOS : this will gather the client's Operating System\n\tprocesses : this will"
             "list out the client's running processes\n\tupload <file path> : this will upload a file to the"
-            "client\n\tdownload <file path> : this will download a file from the client\n\n");
+            "client\n\tdownload <file path> : this will download a file from the client\n\n" << endl;
     // Function for chatting between client and server
     func(connfd);
    
