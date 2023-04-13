@@ -284,6 +284,7 @@ int main()
         WSACleanup();
         return 1;
     }
+    printf("server address and port resolved!\n");
 
     // Create a SOCKET for the server to listen for client connections.
     ListenSocket = socket(result->ai_family, result->ai_socktype, result->ai_protocol);
@@ -293,6 +294,7 @@ int main()
         WSACleanup();
         return 1;
     }
+    printf("socket is up!\n");
 
     // Setup the TCP listening socket
     iResult = bind( ListenSocket, result->ai_addr, (int)result->ai_addrlen);
@@ -313,6 +315,7 @@ int main()
         WSACleanup();
         return 1;
     }
+    printf("is listening for client connections!\n");
 
     // Accept a client socket
     ClientSocket = accept(ListenSocket, NULL, NULL);
