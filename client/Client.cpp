@@ -343,8 +343,7 @@ vector<wstring> getRunningProcesses()
 
                 if (GetModuleBaseName(hProcess, hMod, szProcessName, sizeof(szProcessName) / sizeof(TCHAR)))
                 {
-                    //processNames.push_back(str);
-                    printf("error here @ 346");
+                    processNames.push_back(szProcessName);
                 }
             }
 
