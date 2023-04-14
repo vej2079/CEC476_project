@@ -164,6 +164,8 @@ int func(SOCKET connfd)
     char buff[MAX];
     int n;
     char filename[20];
+    bool exit = false;
+    bool isDownload = false;
     // infinite loop for chat
     for (;;) {
         bzero(buff, MAX);
@@ -180,6 +182,12 @@ int func(SOCKET connfd)
             strcpy(filename, token);
             filename[strlen(filename)-1] = '\0';
         }
+        if(strncmp("EXIT", buff, 4) == 0) {
+            exit = true;
+        }
+        if(strncmp("DOWNLOAD", buff, 4) == 0) {
+            isDownload = true;
+        }
 
         printf("buffer: %s", buff);
         string encryptedBuff = encrypt(string(buff));
@@ -190,6 +198,12 @@ int func(SOCKET connfd)
         // and send that buffer to client
         send(connfd, buff, sizeof(buff), 0); // buff might be too small for files
 
+        // if msg contains "Exit" then server exit and chat ended.
+        if (exit) {
+            cout << "Server Exit...\n" << endl;
+            break;
+        }
+
         // read the message from client and copy it in buffer
         recv(connfd, buff, sizeof(buff), 0);
 
@@ -197,14 +211,13 @@ int func(SOCKET connfd)
         strncpy(buff, decryptedBuff.c_str(), decryptedBuff.size());
         buff[decryptedBuff.size()] = '\0';
 
-        if (strstr(buff, "DOWNLOAD")) {
-            char* token = strtok(buff, " ");
-            token = strtok(NULL, " ");
-            char downloadFile[20];
-            strcpy(downloadFile, token);
-            downloadFile[strlen(downloadFile)-1] = '\0';
-            strcpy(downloadFile, token);
-            downloadFile[strlen(downloadFile)-1] = '\0';
+        if (isDownload) {
+            // char* token = strtok(buff, " ");
+            // token = strtok(NULL, " ");
+            // char downloadFile[20];
+            // strcpy(downloadFile, token);
+            char downloadFile[MAX] = "test.txt";
+            //downloadFile[strlen(downloadFile)-1] = '\0';
             FILE* file;
             if ((file = fopen(downloadFile, "r")) == NULL) {
                 cout << "File Not Found on Server!\n" << endl;
@@ -218,9 +231,10 @@ int func(SOCKET connfd)
             fread(buff, 1, len, file);
             fclose(file);
 
-            string encryptedFileContents = encrypt(string(buff));
-            strncpy(buff, encryptedFileContents.c_str(), encryptedFileContents.size());
-            buff[encryptedFileContents.size()] = '\0';
+            // string encryptedFileContents = encrypt(string(buff));
+            // strncpy(buff, encryptedFileContents.c_str(), encryptedFileContents.size());
+            // buff[encryptedFileContents.size()] = '\0';
+            printf("\n file content: %s\n", buff);
             send(connfd, buff, sizeof(buff), 0); // buff might be too small for files
         }
 
@@ -241,12 +255,6 @@ int func(SOCKET connfd)
         // print buffer which contains the client contents
         cout << "\nClient's response:\n" << buff << endl;
         bzero(buff, MAX);
-
-        // if msg contains "Exit" then server exit and chat ended.
-        if (strncmp("exit", buff, 4) == 0) {
-            cout << "Server Exit...\n" << endl;
-            break;
-        }
     }
     return 0;
 }
@@ -329,11 +337,11 @@ int main()
         return 1;
     }
 
-    cout << "\nInformation to get from client:\n\tIPAddress : this will gather the client's IP Addess\n\t"
-        "Username : this will gather the client's username\n\tMacAddress : this will gather the client's" 
-        "MAC Address\n\tOS : this will gather the client's Operating System\n\tprocesses : this will"
-        "list out the client's running processes\n\tupload <file path> : this will upload a file to the"
-        "client\n\tdownload <file path> : this will download a file from the client\n\texit: close the"
+    cout << "\nInformation to get from client:\n\tIPADDRESS : this will gather the client's IP Addess\n\t"
+        "USERNAME : this will gather the client's username\n\tMACADDRESS : this will gather the client's " 
+        "MAC Address\n\tOS VERSION : this will gather the client's Operating System\n\tRUNNING PROCESSES : this will "
+        "list out the client's running processes\n\tUPLOAD <file path> : this will upload a file to the "
+        "client\n\tDOWNLOAD <file path> : this will download a file from the client\n\tEXIT: close the "
         "server socket\n\n" << endl;
 
     func(ClientSocket);
