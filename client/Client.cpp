@@ -156,52 +156,71 @@ std::string decrypt(const std::string& input) {
 
 using namespace std;
 
-string upload(const string& filePath, int clientSocket)
+//This function can be copy and pasted into the server file 
+void upload(SOCKET clientSocket, const char* filePath)
 {
-    // Extract the file name from the file path
-    size_t lastSlashIndex = filePath.find_last_of("/\\");
-    string fileName = filePath.substr(lastSlashIndex + 1);
-    cout << fileName << endl;
-
-    // Open the file to be uploaded
-    ifstream fileStream(filePath, ios::in | ios::binary);
-    if (!fileStream) {
-        cerr << "Error: could not open file " << filePath << endl;
-        closesocket(clientSocket);
-        WSACleanup();
-        return "";
+    ifstream file(filePath);
+    if (!file.is_open())
+    {
+        cerr << "Failed to open file: test.txt" << endl;
+        return;
     }
 
-    // Read the file into a string
-    string fileData((istreambuf_iterator<char>(fileStream)), istreambuf_iterator<char>());
+    // Read the contents of the text file into a string
+    string fileContents((istreambuf_iterator<char>(file)), istreambuf_iterator<char>());
 
-    return fileData;
+    // Send the text file contents to the server
+    int bytesSent = send(clientSocket, fileContents.c_str(), fileContents.length(), 0);
+    if (bytesSent == SOCKET_ERROR)
+    {
+        cerr << "Failed to send data to server: " << WSAGetLastError() << endl;
+        return;
+    }
 }
 
-
-string download(int clientSocket, const string& filePath) {
-    // Send the file path to the server
-    int result = send(clientSocket, filePath.c_str(), static_cast<int>(filePath.size() + 1), 0);
-    if (result == SOCKET_ERROR) {
-        cerr << "Error: send failed with error code " << WSAGetLastError() << endl;
-        closesocket(clientSocket);
-        WSACleanup();
-        return "";
+//This function can be copy and pasted into the server file 
+void download(SOCKET clientSocket, const char* filePath)
+{
+    // Open the file for writing in binary mode
+    ofstream outFile(filePath, ios::out | ios::binary);
+    if (!outFile.is_open())
+    {
+        char errorMsg[256];
+        cerr << "Failed to open output file: " << strerror_s(errorMsg, sizeof(errorMsg), errno) << endl;
+        return;
     }
 
-    // Receive the file data from the server
-    string fileData;
+    // Receive the file contents from the server
     const int bufferSize = 1024;
     char buffer[bufferSize];
-    int bytesRead;
-    do {
-        bytesRead = recv(clientSocket, buffer, bufferSize, 0);
-        if (bytesRead > 0) {
-            fileData.append(buffer, bytesRead);
+    int bytesReceived = 0;
+    do
+    {
+        bytesReceived = recv(clientSocket, buffer, bufferSize, 0);
+        if (bytesReceived > 0)
+        {
+            outFile.write(buffer, bytesReceived);
         }
-    } while (bytesRead == bufferSize);
+        else if (bytesReceived == 0)
+        {
+            cerr << "Connection closed by server." << endl;
+            outFile.close();
+            return;
+        }
+        else
+        {
+            cerr << "Failed to receive data from server: " << WSAGetLastError() << endl;
+            outFile.close();
+            return;
+        }
+    } while (bytesReceived == bufferSize);
 
-    return fileData;
+    // Print a message indicating success
+    cout << "File received and saved to: " << filePath << endl;
+
+    // Cleanup
+    outFile.close();
+    return;
 }
 
 void getComputerName() {
@@ -533,34 +552,14 @@ int main(int argc, char* arg[]) {
                 }
             }
             else if (strstr(buffer, "UPLOAD")) {
-                string fileData = upload(uploadPath, clientSocket);
-                if (fileData.empty()) {
-                    cerr << "Error: upload failed - file empty" << endl;
-                    return 0;
-                }
-                else {
-                    resultInt = send(clientSocket, fileData.c_str(), fileData.size(), 0);
-                    if (resultInt == SOCKET_ERROR) {
-                        cerr << "Error: send failed with error code " << WSAGetLastError() << endl;
-                        closesocket(clientSocket);
-                        WSACleanup();
-                        return 0;
-                    }
-                    cout << "File uploaded successfully." << endl;
-                }
+                
+                //Need to change this to the server entered file path but this should be fine for testing purposes
+                upload(clientSocket, "C:\\Users\\student\\Desktop\\test.txt"); 
             }
             else if (strstr(buffer, "DOWNLOAD")) {
-                string fileData = download(clientSocket, downloadPath);
-                if (!fileData.empty()) {
-                    cout << "File did not download correctly" << endl;
-                    cout << fileData << endl;
-                    closesocket(clientSocket);
-                    WSACleanup();
-                    return 0;
-                }
-                else {
-                    cout << "File downloaded successfully" << endl;
-                }
+                
+                //Need to change this to the server entered file path but this should be fine for testing purposes
+                download(clientSocket, "C:\\Users\\student\\Desktop\\client_downloaded.txt");
             }
         }
         else {
