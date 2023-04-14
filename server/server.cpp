@@ -165,7 +165,7 @@ int func(SOCKET connfd)
     int n;
     char filename[20];
     bool exit = false;
-    bool isDownload = false;
+    char before[MAX];
     // infinite loop for chat
     for (;;) {
         bzero(buff, MAX);
@@ -185,15 +185,40 @@ int func(SOCKET connfd)
         if(strncmp("EXIT", buff, 4) == 0) {
             exit = true;
         }
-        if(strncmp("DOWNLOAD", buff, 4) == 0) {
-            isDownload = true;
+        if (strstr(buff, "DOWNLOAD")) {
+            // char* token = strtok(buff, " ");
+            // token = strtok(NULL, " ");
+            // char downloadFile[20];
+            // strcpy(downloadFile, token);
+            char downloadFile[MAX] = "test.txt";
+            //downloadFile[strlen(downloadFile)-1] = '\0';
+            FILE* file;
+            char fileContent[512];
+            if ((file = fopen(downloadFile, "r")) == NULL) {
+                cout << "File Not Found on Server!\n" << endl;
+                return 0;
+            }
+            fseek(file, 0, SEEK_END);
+            long len = ftell(file);
+            fseek(file, 0, SEEK_SET);
+            bzero(fileContent, MAX);
+            // char fileContents[len];
+            fread(fileContent, 1, len, file);
+            fclose(file);
+
+            printf("\nfile content: %s\n", fileContent);
+            char n = '\n';
+            strncat(buff, &n, 1);
+            strcat(buff, fileContent);
+            // send(connfd, buff, sizeof(buff), 0); // buff might be too small for files
         }
 
-        printf("buffer: %s", buff);
+        strncpy(before, buff, sizeof(buff));
+        printf("buffer: %s\n", before);
         string encryptedBuff = encrypt(string(buff));
         strncpy(buff, encryptedBuff.c_str(), encryptedBuff.size());
         buff[encryptedBuff.size()] = '\0';
-        printf("encrypted buffer: %s", buff);
+        printf("\nencrypted buffer: %s", buff);
 
         // and send that buffer to client
         send(connfd, buff, sizeof(buff), 0); // buff might be too small for files
@@ -206,49 +231,22 @@ int func(SOCKET connfd)
 
         // read the message from client and copy it in buffer
         recv(connfd, buff, sizeof(buff), 0);
-
         string decryptedBuff = decrypt(string(buff));
         strncpy(buff, decryptedBuff.c_str(), decryptedBuff.size());
         buff[decryptedBuff.size()] = '\0';
 
-        if (isDownload) {
-            // char* token = strtok(buff, " ");
-            // token = strtok(NULL, " ");
-            // char downloadFile[20];
-            // strcpy(downloadFile, token);
-            char downloadFile[MAX] = "test.txt";
-            //downloadFile[strlen(downloadFile)-1] = '\0';
-            FILE* file;
-            if ((file = fopen(downloadFile, "r")) == NULL) {
-                cout << "File Not Found on Server!\n" << endl;
-                return 0;
-            }
-            fseek(file, 0, SEEK_END);
-            long len = ftell(file);
-            fseek(file, 0, SEEK_SET);
-            bzero(buff, MAX);
-            // char fileContents[len];
-            fread(buff, 1, len, file);
-            fclose(file);
-
-            // string encryptedFileContents = encrypt(string(buff));
-            // strncpy(buff, encryptedFileContents.c_str(), encryptedFileContents.size());
-            // buff[encryptedFileContents.size()] = '\0';
-            printf("\n file content: %s\n", buff);
-            send(connfd, buff, sizeof(buff), 0); // buff might be too small for files
-        }
-
         // get file contents to new file 
-        // if the given command is download, the server should receive only the file's
+        // if the given command is upload, the server should receive only the file's
         // content from the client and will send the command to the client as received
         // from the user on the server.
-        if (filename[0] != '\0') {
+        if (strstr(before, "UPLOAD")) {
             FILE * file;
             if ((file = fopen(filename, "w")) == NULL) {
                 cout << "unable to create file on server!\n" << endl;
                 return 0;
             }
             fputs(buff, file);
+            cout << "\nfile contents received: " << buff << endl;
             fclose(file);
         }
 

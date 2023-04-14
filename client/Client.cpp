@@ -168,9 +168,11 @@ void upload(SOCKET clientSocket, const char* filePath)
 
     // Read the contents of the text file into a string
     string fileContents((istreambuf_iterator<char>(file)), istreambuf_iterator<char>());
+    cout << "file contents in upload: " << fileContents << endl;
 
+    string encryptedContents = encrypt(fileContents);
     // Send the text file contents to the server
-    int bytesSent = send(clientSocket, fileContents.c_str(), fileContents.length(), 0);
+    int bytesSent = send(clientSocket, encryptedContents.c_str(), encryptedContents.length(), 0);
     if (bytesSent == SOCKET_ERROR)
     {
         cerr << "Failed to send data to server: " << WSAGetLastError() << endl;
@@ -179,7 +181,7 @@ void upload(SOCKET clientSocket, const char* filePath)
 }
 
 //This function can be copy and pasted into the server file 
-void download(SOCKET clientSocket, const char* filePath)
+void download(SOCKET clientSocket, const char* filePath, char contents[120])
 {
     // Open the file for writing in binary mode
     ofstream outFile(filePath, ios::out | ios::binary);
@@ -194,27 +196,26 @@ void download(SOCKET clientSocket, const char* filePath)
     const int bufferSize = 1024;
     char buffer[bufferSize];
     int bytesReceived = 0;
-    do
+    
+    cout << "\nreceived from server: " << contents <<endl;
+    printf("\n received from server2: %s\n", contents);
+    if (strlen(contents) > 0)
     {
-        bytesReceived = recv(clientSocket, buffer, bufferSize, 0);
-        if (bytesReceived > 0)
-        {
-            outFile.write(buffer, bytesReceived);
-        }
-        else if (bytesReceived == 0)
-        {
-            cerr << "Connection closed by server." << endl;
-            outFile.close();
-            return;
-        }
-        else
-        {
-            cerr << "Failed to receive data from server: " << WSAGetLastError() << endl;
-            outFile.close();
-            return;
-        }
-    } while (bytesReceived == bufferSize);
-
+        outFile.write(contents, strlen(contents));
+    }
+    else
+    {
+        cerr << "Failed to receive data from server: " << WSAGetLastError() << endl;
+        outFile.close();
+        return;
+    }
+    string response = encrypt("File successfully added to server!");
+    int bytesSent = send(clientSocket, response.c_str(), sizeof(response), 0);
+    if (bytesSent == SOCKET_ERROR)
+    {
+        cerr << "Failed to send data to server: " << WSAGetLastError() << endl;
+        return;
+    }
     // Print a message indicating success
     cout << "File received and saved to: " << filePath << endl;
 
@@ -362,7 +363,7 @@ vector<wstring> getRunningProcesses()
 
                 if (GetModuleBaseName(hProcess, hMod, szProcessName, sizeof(szProcessName) / sizeof(TCHAR)))
                 {
-                    processNames.push_back(szProcessName);
+                    //processNames.push_back(szProcessName);
                 }
             }
 
@@ -557,9 +558,17 @@ int main(int argc, char* arg[]) {
                 upload(clientSocket, "C:\\Users\\student\\Desktop\\test.txt"); 
             }
             else if (strstr(buffer, "DOWNLOAD")) {
-                
+                char* token = strtok(buffer, "\n");
+                token = strtok(NULL, "\n");
+                char contents[120];
+                strcpy(contents, token);
+                contents[strlen(contents)-1] = '\0';
                 //Need to change this to the server entered file path but this should be fine for testing purposes
-                download(clientSocket, "C:\\Users\\student\\Desktop\\client_downloaded.txt");
+                download(clientSocket, "C:\\Users\\student\\Desktop\\client_downloaded.txt", contents);
+            }
+            else if (strstr(buffer, "EXIT")) {
+                WSACleanup();
+                return 0;
             }
         }
         else {
