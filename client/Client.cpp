@@ -7,9 +7,12 @@
 #include <stdio.h>
 #include <iostream>
 #include <fstream>
-#include <string>
+#include <string.h>
 #include <iostream>
 #include <string>
+#include <stdlib.h>
+#include <string.h>
+#include <unistd.h>
 #include <vector>
 #include <WinSock2.h>
 #include <ws2tcpip.h>
@@ -30,6 +33,8 @@
 #pragma comment(lib, "iphlpapi.lib")
 #pragma comment(lib, "ws2_32.lib")
 
+using namespace std;
+
 // Caesar Cipher
 int caesar_shift = 3;
 
@@ -41,7 +46,7 @@ string key2 = "reversingproject";
 static const string BASE64_CHARS = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
 
 // Encode functions ...
-string xor_encrypt(const String input, const String key) {
+string xor_encrypt(const string input, const string key) {
     string output;
     output.resize(input.size());
     for (size_t i = 0; i < input.size(); ++i) {
@@ -50,7 +55,7 @@ string xor_encrypt(const String input, const String key) {
     return output;
 }
 
-string caesar_encrypt(const String input) {
+string caesar_encrypt(const string input) {
     string output;
     output.resize(input.size());
     for (size_t i = 0; i < input.size(); ++i) {
@@ -65,7 +70,7 @@ string caesar_encrypt(const String input) {
     return output;
 }
 
-string caesar_decrypt(const String input) {
+string caesar_decrypt(const string input) {
     string output;
     output.resize(input.size());
     for (size_t i = 0; i < input.size(); ++i) {
@@ -80,7 +85,7 @@ string caesar_decrypt(const String input) {
     return output;
 }
 
-string base64_encode(const String input) {
+string base64_encode(const string input) {
     string output;
     int val = 0;
     int valb = -6;
@@ -101,7 +106,7 @@ string base64_encode(const String input) {
     return output;
 }
 
-string base64_decode(const String input) {
+string base64_decode(const string input) {
     string output;
     vector<int> T(256, -1);
     for (size_t i = 0; i < BASE64_CHARS.size(); i++) {
@@ -125,7 +130,7 @@ string base64_decode(const String input) {
 }
 
 // Encode Decode Comb
-string encrypt(const String input) {
+string encrypt(const string input) {
     // Step 1: XOR
     string xor_encrypted = xor_encrypt(input, key1);
 
@@ -141,7 +146,7 @@ string encrypt(const String input) {
     return final_encrypted;
 }
 
-string decrypt(const String input) {
+string decrypt(const string input) {
     // Step 1: XOR
     string xor_decrypted = xor_encrypt(input, key2);
 
