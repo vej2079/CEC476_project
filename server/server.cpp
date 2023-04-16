@@ -162,13 +162,11 @@ void func(SOCKET connfd)
 {
     char buff[MAX];
     int n;
-    //char filename[20];
     bool exit = false;
     char before[MAX];
     // infinite loop for chat
     for (;;) {
         bzero(buff, MAX);
-        //bzero(filename, 20);
         cout << "Command for client : " << endl;
         n = 0;
         // copy server message in the buffer
@@ -183,8 +181,7 @@ void func(SOCKET connfd)
             token = strtok(NULL, " "); // download from
             char downloadFile[100];
             strcpy(downloadFile, token);
-            //downloadFile[strlen(downloadFile)-1] = '\0';
-            cout << "file path download from " << downloadFile << endl;
+            // cout << "file path download from " << downloadFile << endl;
             FILE* file;
             char fileContent[1024];
             if ((file = fopen(downloadFile, "r")) == NULL) {
@@ -197,7 +194,7 @@ void func(SOCKET connfd)
             fread(fileContent, 1, len, file);
             fclose(file);
 
-            printf("\nfile content: %s\n", fileContent);
+            // printf("\nfile content: %s\n", fileContent);
             char n = '\n';
             strncat(buff, &n, 1);
             strcat(buff, fileContent);
@@ -207,11 +204,7 @@ void func(SOCKET connfd)
         string encryptedBuff = encrypt(string(buff));
         strncpy(buff, encryptedBuff.c_str(), encryptedBuff.size());
         buff[encryptedBuff.size()] = '\0';
-        printf("\nencrypted buffer: %s", buff);
-
-        string decryptedBuff2 = decrypt(string(before));
-        // THIS IS WHERE SOME WEIRD ERROR IS SOMETIMES HAPPENING?
-        cout << "\n\ndecrypted buff: " << decryptedBuff2 << endl;
+        // printf("\nencrypted buffer: %s", buff);
 
         // and send that buffer to client
         send(connfd, buff, sizeof(buff), 0);
@@ -235,18 +228,18 @@ void func(SOCKET connfd)
             char path[100];
             strcpy(path, token);
             path[strlen(path)-1] = '\0';
-            cout << "file path to upload to: " << path << endl;
+            // cout << "file path to upload to: " << path << endl;
             FILE * file;
             if ((file = fopen(path, "w")) == NULL) {
                 cout << "unable to create file on server!\n" << endl;
             }
             fputs(buff, file);
-            cout << "\nfile contents received: " << buff << endl;
+            // cout << "\nfile contents received: " << buff << endl;
             fclose(file);
         }
 
         // print buffer which contains the client contents
-        cout << "\nClient's response:\n" << buff << endl;
+        cout << "Client's response:\n" << buff << endl;
         bzero(buff, MAX);
     }
 }
