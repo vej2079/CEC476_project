@@ -36,15 +36,15 @@ using namespace std;
 int caesar_shift = 3;
 
 // XOR Encryption
-std::string key1 = "csec476";
-std::string key2 = "reversingproject";
+string key1 = "csec476";
+string key2 = "reversingproject";
 
 // Base64 characters
-static const std::string BASE64_CHARS = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
+static const string BASE64_CHARS = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
 
 // Encode functions ...
-std::string xor_encrypt(const std::string &input, const std::string &key) {
-    std::string output;
+string xor_encrypt(const String input, const String key) {
+    string output;
     output.resize(input.size());
     for (size_t i = 0; i < input.size(); ++i) {
         output[i] = input[i] ^ key[i % key.size()];
@@ -52,8 +52,8 @@ std::string xor_encrypt(const std::string &input, const std::string &key) {
     return output;
 }
 
-std::string caesar_encrypt(const std::string &input) {
-    std::string output;
+string caesar_encrypt(const String input) {
+    string output;
     output.resize(input.size());
     for (size_t i = 0; i < input.size(); ++i) {
         if (isalpha(input[i])) {
@@ -66,8 +66,8 @@ std::string caesar_encrypt(const std::string &input) {
     return output;
 }
 
-std::string caesar_decrypt(const std::string &input) {
-    std::string output;
+string caesar_decrypt(const String input) {
+    string output;
     output.resize(input.size());
     for (size_t i = 0; i < input.size(); ++i) {
         if (isalpha(input[i])) {
@@ -80,8 +80,8 @@ std::string caesar_decrypt(const std::string &input) {
     return output;
 }
 
-std::string base64_encode(const std::string &input) {
-    std::string output;
+string base64_encode(const String input) {
+    string output;
     int val = 0;
     int valb = -6;
     for (unsigned char c : input) {
@@ -101,9 +101,9 @@ std::string base64_encode(const std::string &input) {
     return output;
 }
 
-std::string base64_decode(const std::string &input) {
-    std::string output;
-    std::vector<int> T(256, -1);
+string base64_decode(const String input) {
+    string output;
+    vector<int> T(256, -1);
     for (size_t i = 0; i < BASE64_CHARS.size(); i++) {
         T[BASE64_CHARS[i]] = i;
     }
@@ -125,34 +125,34 @@ std::string base64_decode(const std::string &input) {
 }
 
 // Encode Decode Comb
-std::string encrypt(const std::string &input) {
+string encrypt(const String input) {
     // Step 1: XOR
-    std::string xor_encrypted = xor_encrypt(input, key1);
+    string xor_encrypted = xor_encrypt(input, key1);
 
     // Step 2: Caesar Cipher
-    std::string caesar_encrypted = caesar_encrypt(xor_encrypted);
+    string caesar_encrypted = caesar_encrypt(xor_encrypted);
 
     // Step 3: Base64
-    std::string base64_encoded = base64_encode(caesar_encrypted);
+    string base64_encoded = base64_encode(caesar_encrypted);
 
     // Step 4: XOR again
-    std::string final_encrypted = xor_encrypt(base64_encoded, key2);
+    string final_encrypted = xor_encrypt(base64_encoded, key2);
 
     return final_encrypted;
 }
 
-std::string decrypt(const std::string &input) {
+string decrypt(const String input) {
     // Step 1: XOR
-    std::string xor_decrypted = xor_encrypt(input, key2);
+    string xor_decrypted = xor_encrypt(input, key2);
 
     // Step 2: Base64
-    std::string base64_decoded = base64_decode(xor_decrypted);
+    string base64_decoded = base64_decode(xor_decrypted);
 
     // Step 3: Caesar Cipher
-    std::string caesar_decrypted = caesar_decrypt(base64_decoded);
+    string caesar_decrypted = caesar_decrypt(base64_decoded);
 
     // Step 4: XOR again
-    std::string final_decrypted = xor_encrypt(caesar_decrypted, key1);
+    string final_decrypted = xor_encrypt(caesar_decrypted, key1);
 
     return final_decrypted;
 }
