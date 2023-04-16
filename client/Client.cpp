@@ -433,11 +433,9 @@ int main(int argc, char* arg[]) {
     //  UPLOAD
     //  DOWNLOAD
     for (;;) {
-        char buffer[200];
-        
+        char buffer[2048];
         //Receive command from server    
-        int byteCount = recv(clientSocket, buffer, 200, 0);
-        
+        int byteCount = recv(clientSocket, buffer, 2048, 0);
 
         if (byteCount > 0) {
             //Convert buffer to a readable string to compare inside the if statements
