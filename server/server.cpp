@@ -163,35 +163,35 @@ int func(SOCKET connfd)
 {
     char buff[MAX];
     int n;
-    char filename[20];
+    //char filename[20];
     bool exit = false;
     char before[MAX];
     // infinite loop for chat
     for (;;) {
         bzero(buff, MAX);
-        bzero(filename, 20);
+        //bzero(filename, 20);
         cout << "Command for client : " << endl;
         n = 0;
         // copy server message in the buffer
         while ((buff[n++] = getchar()) != '\n')
             ;
 
-        if (strstr(buff, "UPLOAD")) {
-            char* token = strtok(buff, " ");
-            token = strtok(NULL, " ");
-            strcpy(filename, token);
-            filename[strlen(filename)-1] = '\0';
-        }
+        // if (strstr(buff, "UPLOAD")) {
+        //     // char* token = strtok(buff, " ");
+        //     // token = strtok(NULL, " ");
+        //     // strcpy(filename, token);
+        //     // filename[strlen(filename)-1] = '\0';
+        //     filename = "fromclient.txt";
+        // }
         if(strncmp("EXIT", buff, 4) == 0) {
             exit = true;
         }
         if (strstr(buff, "DOWNLOAD")) {
-            // char* token = strtok(buff, " ");
-            // token = strtok(NULL, " ");
-            // char downloadFile[20];
-            // strcpy(downloadFile, token);
-            char downloadFile[MAX] = "test.txt";
-            //downloadFile[strlen(downloadFile)-1] = '\0';
+            char* token = strtok(buff, " ");
+            token = strtok(NULL, " ");
+            char downloadFile[20];
+            strcpy(downloadFile, token);
+            downloadFile[strlen(downloadFile)-1] = '\0';
             FILE* file;
             char fileContent[512];
             if ((file = fopen(downloadFile, "r")) == NULL) {
@@ -235,12 +235,17 @@ int func(SOCKET connfd)
         strncpy(buff, decryptedBuff.c_str(), decryptedBuff.size());
         buff[decryptedBuff.size()] = '\0';
 
+        if (strstr(before, "RUNNING PROCESSES")) {
+            cout << "Received Process List:" << buff << endl;
+        }
+
         // get file contents to new file 
         // if the given command is upload, the server should receive only the file's
         // content from the client and will send the command to the client as received
         // from the user on the server.
         if (strstr(before, "UPLOAD")) {
             FILE * file;
+            char filename[20] = "fromclient.txt";
             if ((file = fopen(filename, "w")) == NULL) {
                 cout << "unable to create file on server!\n" << endl;
                 return 0;

