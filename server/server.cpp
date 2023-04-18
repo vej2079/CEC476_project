@@ -200,7 +200,7 @@ void func(SOCKET connfd)
             strcat(buff, fileContent);
         }
 
-        printf("buffer: %s\n", before);
+        //printf("buffer: %s\n", before);
         string encryptedBuff = encrypt(string(buff));
         strncpy(buff, encryptedBuff.c_str(), encryptedBuff.size());
         buff[encryptedBuff.size()] = '\0';
