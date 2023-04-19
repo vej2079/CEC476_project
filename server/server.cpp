@@ -172,72 +172,78 @@ void func(SOCKET connfd)
         // copy server message in the buffer
         while ((buff[n++] = getchar()) != '\n')
             ;
-        if(strncmp("EXIT", buff, 4) == 0) {
-            exit = true;
-        }
-        strncpy(before, buff, sizeof(buff));
-        if (strstr(buff, "DOWNLOAD")) {
-            char* token = strtok(before, " ");
-            token = strtok(NULL, " "); // download from
-            char downloadFile[100];
-            strcpy(downloadFile, token);
-            // cout << "file path download from " << downloadFile << endl;
-            FILE* file;
-            char fileContent[1024];
-            if ((file = fopen(downloadFile, "r")) == NULL) {
-                cout << "File Not Found on Server!\n" << endl;
+        if ((strstr(buff,"DOWNLOAD") && strstr(buff, "D ")) || (strstr(buff,"UPLOAD") && strstr(buff, "D ")) || strstr(buff,"IPADDRESS") ||
+            strstr(buff,"MACADDRESS") || strstr(buff,"OS VERSION") || strstr(buff,"USERNAME") ||
+            strstr(buff,"RUNNING PROCESSES") || strstr(buff,"EXIT")) {
+            if(strncmp("EXIT", buff, 4) == 0) {
+                exit = true;
             }
-            fseek(file, 0, SEEK_END);
-            long len = ftell(file);
-            fseek(file, 0, SEEK_SET);
-            bzero(fileContent, MAX);
-            fread(fileContent, 1, len, file);
-            fclose(file);
+            strncpy(before, buff, sizeof(buff));
+            if (strstr(buff, "DOWNLOAD")) {
+                char* token = strtok(before, " ");
+                token = strtok(NULL, " "); // download from
+                char downloadFile[100];
+                strcpy(downloadFile, token);
+                // cout << "file path download from " << downloadFile << endl;
+                FILE* file;
+                char fileContent[1024];
+                if ((file = fopen(downloadFile, "r")) == NULL) {
+                    cout << "File Not Found on Server!\n" << endl;
+                }
+                fseek(file, 0, SEEK_END);
+                long len = ftell(file);
+                fseek(file, 0, SEEK_SET);
+                bzero(fileContent, MAX);
+                fread(fileContent, 1, len, file);
+                fclose(file);
 
-            // printf("\nfile content: %s\n", fileContent);
-            char n = '\n';
-            strncat(buff, &n, 1);
-            strcat(buff, fileContent);
-        }
-
-        //printf("buffer: %s\n", before);
-        string encryptedBuff = encrypt(string(buff));
-        strncpy(buff, encryptedBuff.c_str(), encryptedBuff.size());
-        buff[encryptedBuff.size()] = '\0';
-        printf("\nencrypted command:\n %s\n", buff);
-
-        // and send that buffer to client
-        send(connfd, buff, sizeof(buff), 0);
-
-        // if msg contains "Exit" then server exit and chat ended.
-        if (exit) {
-            cout << "Server Exit...\n" << endl;
-            break;
-        }
-
-        // read the message from client and copy it in buffer
-        recv(connfd, buff, sizeof(buff), 0);
-        printf("\nencrypted data received from client:\n%s\n", buff);
-        string decryptedBuff = decrypt(string(buff));
-        strncpy(buff, decryptedBuff.c_str(), decryptedBuff.size());
-        buff[decryptedBuff.size()] = '\0';
-        printf("\ndecrypted data received from client:\n%s\n\n", buff);
-
-        if (strstr(before, "UPLOAD")) {
-            char* token = strtok(before, " ");
-            token = strtok(NULL, " "); // upload from
-            token = strtok(NULL, " "); // upload to
-            char path[100];
-            strcpy(path, token);
-            path[strlen(path)-1] = '\0';
-            // cout << "file path to upload to: " << path << endl;
-            FILE * file;
-            if ((file = fopen(path, "w")) == NULL) {
-                cout << "unable to create file on server!\n" << endl;
+                // printf("\nfile content: %s\n", fileContent);
+                char n = '\n';
+                strncat(buff, &n, 1);
+                strcat(buff, fileContent);
             }
-            fputs(buff, file);
-            // cout << "\nfile contents received: " << buff << endl;
-            fclose(file);
+
+            //printf("buffer: %s\n", before);
+            string encryptedBuff = encrypt(string(buff));
+            strncpy(buff, encryptedBuff.c_str(), encryptedBuff.size());
+            buff[encryptedBuff.size()] = '\0';
+            printf("\nencrypted command:\n %s\n", buff);
+
+            // and send that buffer to client
+            send(connfd, buff, sizeof(buff), 0);
+
+            // if msg contains "Exit" then server exit and chat ended.
+            if (exit) {
+                cout << "Server Exit...\n" << endl;
+                break;
+            }
+
+            // read the message from client and copy it in buffer
+            recv(connfd, buff, sizeof(buff), 0);
+            printf("\nencrypted data received from client:\n%s\n", buff);
+            string decryptedBuff = decrypt(string(buff));
+            strncpy(buff, decryptedBuff.c_str(), decryptedBuff.size());
+            buff[decryptedBuff.size()] = '\0';
+            printf("\ndecrypted data received from client:\n%s\n\n", buff);
+
+            if (strstr(before, "UPLOAD")) {
+                char* token = strtok(before, " ");
+                token = strtok(NULL, " "); // upload from
+                token = strtok(NULL, " "); // upload to
+                char path[100];
+                strcpy(path, token);
+                path[strlen(path)-1] = '\0';
+                // cout << "file path to upload to: " << path << endl;
+                FILE * file;
+                if ((file = fopen(path, "w")) == NULL) {
+                    cout << "unable to create file on server!\n" << endl;
+                }
+                fputs(buff, file);
+                // cout << "\nfile contents received: " << buff << endl;
+                fclose(file);
+            }
+        } else {
+            cout << "Command not found!" << endl;
         }
 
         // print buffer which contains the client contents
@@ -328,7 +334,7 @@ int main()
         "USERNAME : this will gather the client's username\n\tMACADDRESS : this will gather the client's " 
         "MAC Address\n\tOS VERSION : this will gather the client's Operating System\n\tRUNNING PROCESSES : this will "
         "list out the client's running processes\n\tUPLOAD <upload_from_path> <upload_to_path> : this will upload"
-        " a file to the server\n\tDOWNLOAD <download_from_path> <download_to_path> : this will download a file tos "
+        " a file to the server\n\tDOWNLOAD <download_from_path> <download_to_path> : this will download a file to "
         "the client\n\tEXIT: close the server socket\n\n" << endl;
 
     func(ClientSocket);
